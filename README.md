@@ -142,7 +142,7 @@ Mỗi người phụ trách một module (một hoặc hai Django app). Điền 
 | --- | ----------------------------------------------------------- | --------------------------- | ---------- |
 | A   | Catalog và tìm kiếm                                         | `catalog` (đã có khuôn mẫu) | (điền tên) |
 | B   | Giỏ hàng, đơn hàng, thanh toán mô phỏng                     | `orders`, `payments`        | (điền tên) |
-| C   | Mẻ rang và IoT mô phỏng, trang truy xuất                    | `roasting`                  | (điền tên) |
+| C   | Mẻ rang và IoT mô phỏng, trang truy xuất                    | `roasting`                  | Lương Thế Cường |
 | D   | Nền tảng: CSDL, hợp đồng API, đăng nhập, kiểm thử, tài liệu | `accounts`, `docs/`         | (điền tên) |
 
 Quy định môn: **chép nguyên văn nội dung do AI tạo ra thì cả nhóm bị 0 điểm**. Mỗi người tự viết phần báo cáo của module mình, ý tưởng phải của nhóm, và phải giải thích được code mình nộp. AI dùng để hiểu và gỡ lỗi, không dùng để làm hộ cả phần.
