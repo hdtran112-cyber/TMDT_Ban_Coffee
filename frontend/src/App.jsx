@@ -1,27 +1,24 @@
-import { useEffect, useState } from "react";
-import { getProducts } from "./api";
+import { Route, Routes } from "react-router-dom";
+import Layout from "./components/Layout";
+import ProductDetailPage from "./modules/catalog/ProductDetailPage";
+import ProductListPage from "./modules/catalog/ProductListPage";
+
+function ComingSoon({ title }) {
+  return <p>{title}: đang làm.</p>;
+}
 
 export default function App() {
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    getProducts()
-      .then(setProducts)
-      .catch((e) => setError(e.message));
-  }, []);
-
   return (
-    <div style={{ maxWidth: 720, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <h1>Cà phê rang</h1>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <ul>
-        {products.map((p) => (
-          <li key={p.id}>
-            {p.name} - {p.price_vnd.toLocaleString("vi-VN")}đ ({p.roast_level})
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<ProductListPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<ComingSoon title="Giỏ hàng (Hiếu)" />} />
+        <Route path="/orders" element={<ComingSoon title="Đơn của tôi (Hiếu)" />} />
+        <Route path="/trace" element={<ComingSoon title="Truy xuất mẻ rang (Cường)" />} />
+        <Route path="/login" element={<ComingSoon title="Đăng nhập (Anh)" />} />
+        <Route path="*" element={<p>Không tìm thấy trang.</p>} />
+      </Route>
+    </Routes>
   );
 }
