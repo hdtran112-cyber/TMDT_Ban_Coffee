@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
+import ProductDetailPage from "./modules/catalog/ProductDetailPage";
 import ProductListPage from "./modules/catalog/ProductListPage";
 
 function ComingSoon({ title }) {
@@ -11,6 +12,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<ProductListPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/cart" element={<ComingSoon title="Giỏ hàng (Hiếu)" />} />
         <Route path="/orders" element={<ComingSoon title="Đơn của tôi (Hiếu)" />} />
         <Route path="/trace" element={<ComingSoon title="Truy xuất mẻ rang (Cường)" />} />
