@@ -20,6 +20,7 @@ export default function ProductListPage() {
     getProducts(params)
       .then(setProducts)
       .catch((err) => {
+        console.error("Lỗi tải sản phẩm:", err);
         setProducts([]);
         if (err.status === 400 && err.data) {
           setError(Object.values(err.data).flat().join(" "));
