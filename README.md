@@ -89,6 +89,42 @@ Lưu ý:
 
 ---
 
+## Chạy frontend (React + Vite)
+
+Yêu cầu: đã cài Node.js (từ bản 20 trở lên, kiểm tra bằng `node -v`) và npm.
+
+Frontend và backend chạy **cùng lúc ở hai terminal khác nhau**.
+
+```bash
+# Terminal 1: backend
+cd TMDT_Ban_Coffee/backend
+conda activate tmdt
+python manage.py runserver
+
+# Terminal 2: frontend (lần đầu cần npm install)
+cd TMDT_Ban_Coffee/frontend
+npm install
+npm run dev
+```
+
+Mở trình duyệt vào `http://localhost:5173`. Phải dùng đúng `localhost`, **không** dùng `127.0.0.1:5173`, vì backend chỉ cho phép (CORS) địa chỉ `localhost:5173`. Thấy danh sách cà phê hiện ra là frontend đã nối được với backend.
+
+Mỗi lần `git pull` mà thấy `frontend/package.json` thay đổi, chạy lại `npm install` trong thư mục `frontend`.
+
+### Cấu trúc frontend hiện tại
+
+- `src/api.js`: nơi duy nhất chứa địa chỉ API (`API_URL`) và các hàm gọi API. Không viết địa chỉ `http://127.0.0.1:8000` rải rác trong các trang khác.
+- `src/App.jsx`: trang chính, hiện là trang danh sách sản phẩm.
+- Thư viện đã cài sẵn: `react-router-dom` (chuyển trang), `chart.js` và `react-chartjs-2` (vẽ biểu đồ nhiệt độ).
+
+Khi backend và frontend cùng chạy, nếu trình duyệt báo lỗi CORS hoặc "Failed to fetch", kiểm tra theo thứ tự: backend có đang chạy không, đang mở `localhost:5173` đúng không, `CORS_ALLOWED_ORIGINS` trong `backend/config/settings.py` có địa chỉ này không.
+
+### Quy ước làm frontend (sẽ cập nhật khi nhóm bắt đầu làm giao diện, dự kiến từ 2/11)
+
+- Mỗi module làm các trang của mình trong thư mục riêng, ví dụ `src/modules/orders/`, để hạn chế xung đột Git.
+- Gọi API qua các hàm trong thư mục `src/`, không gọi `fetch` thẳng trong trang.
+- Token đăng nhập lưu ở trình duyệt và gửi kèm header `Authorization: Token <token>` khi gọi API cần đăng nhập.
+
 ## 4. API hiện có
 
 Địa chỉ gốc: `http://127.0.0.1:8000/api/`
@@ -138,12 +174,12 @@ Thử bằng Postman: nhớ gõ địa chỉ đầy đủ có `http://127.0.0.1:
 
 Mỗi người phụ trách một module (một hoặc hai Django app). Điền tên vào bảng:
 
-| Mã  | Module                                                      | Django app dự kiến          | Phụ trách  |
-| --- | ----------------------------------------------------------- | --------------------------- | ---------- |
-| A   | Catalog và tìm kiếm                                         | `catalog` (đã có khuôn mẫu) | Hien |
-| B   | Giỏ hàng, đơn hàng, thanh toán mô phỏng                     | `orders`, `payments`        | Hieu |
+| Mã  | Module                                                      | Django app dự kiến          | Phụ trách       |
+| --- | ----------------------------------------------------------- | --------------------------- | --------------- |
+| A   | Catalog và tìm kiếm                                         | `catalog` (đã có khuôn mẫu) | Hien            |
+| B   | Giỏ hàng, đơn hàng, thanh toán mô phỏng                     | `orders`, `payments`        | Hieu            |
 | C   | Mẻ rang và IoT mô phỏng, trang truy xuất                    | `roasting`                  | Lương Thế Cường |
-| D   | Nền tảng: CSDL, hợp đồng API, đăng nhập, kiểm thử, tài liệu | `accounts`, `docs/`         | Anh |
+| D   | Nền tảng: CSDL, hợp đồng API, đăng nhập, kiểm thử, tài liệu | `accounts`, `docs/`         | Anh             |
 
 Quy định môn: **chép nguyên văn nội dung do AI tạo ra thì cả nhóm bị 0 điểm**. Mỗi người tự viết phần báo cáo của module mình, ý tưởng phải của nhóm, và phải giải thích được code mình nộp. AI dùng để hiểu và gỡ lỗi, không dùng để làm hộ cả phần.
 
