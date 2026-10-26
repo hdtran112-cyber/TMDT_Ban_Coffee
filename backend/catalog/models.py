@@ -1,5 +1,5 @@
 from django.db import models
-
+from .text import normalize_vi
 
 class Product(models.Model):
     ROAST_CHOICES = [
@@ -9,6 +9,7 @@ class Product(models.Model):
     ]
 
     name = models.CharField(max_length=200)
+    search_name = models.CharField(max_length=200, blank=True, editable=False)
     description = models.TextField(blank=True)
     price_vnd = models.PositiveIntegerField()
     stock = models.PositiveIntegerField(default=0)
@@ -21,3 +22,7 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        self.search_name = normalize_vi(self.name)
+        super().save(*args, **kwargs)
