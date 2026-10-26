@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getProducts } from "../../api/catalog";
+import { ROAST_LABEL, formatPrice } from "./labels";
 
 const EMPTY = { q: "", roast_level: "", bean_type: "", price_min: "", price_max: "", ordering: "" };
 
@@ -43,9 +44,10 @@ export default function ProductListPage() {
 
   return (
     <div>
-      <h1>Cà phê rang</h1>
+      <h1 className="page-title">Cà phê rang</h1>
+      <p className="page-sub">Tìm theo tên, gõ không dấu cũng được. Je suis Tsar</p>
 
-      <form onSubmit={onSubmit} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+      <form onSubmit={onSubmit} className="filters">
         <input name="q" placeholder="Tìm cà phê..." value={form.q} onChange={onChange} />
         <select name="roast_level" value={form.roast_level} onChange={onChange}>
           <option value="">Mọi mức rang</option>
@@ -63,22 +65,33 @@ export default function ProductListPage() {
           <option value="-created_at">Mới nhất</option>
           <option value="name">Tên A-Z</option>
         </select>
-        <button type="submit">Tìm</button>
-        <button type="button" onClick={onReset}>Xóa lọc</button>
+        <button type="submit" className="btn">Tìm</button>
+        <button type="button" className="btn btn-ghost" onClick={onReset}>Xóa lọc</button>
       </form>
 
-      {loading && <p>Đang tải...</p>}
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      {!loading && !error && products.length === 0 && <p>Không có sản phẩm phù hợp.</p>}
+      {loading && <p className="msg-muted">Đang tải...</p>}
+      {error && <p className="msg-error">{error}</p>}
+      {!loading && !error && products.length === 0 && (
+        <p className="msg-muted">Không có sản phẩm phù hợp.</p>
+      )}
+      {!loading && !error && products.length > 0 && (
+        <p className="msg-muted">{products.length} sản phẩm</p>
+      )}
 
-      <ul>
+      <div className="grid">
         {products.map((p) => (
-          <li key={p.id}>
-            <Link to={`/products/${p.id}`}>{p.name}</Link>
-            {" - "}{p.price_vnd.toLocaleString("vi-VN")}đ ({p.roast_level})
-          </li>
+          <Link key={p.id} to={`/products/${p.id}`} className="card">
+            <div className={`thumb ${p.roast_level}`}>
+              {p.image_url ? <img src={p.image_url} alt={p.name} /> : ROAST_LABEL[p.roast_level]}
+            </div>
+            <div className="card-body">
+              <span className="card-name">{p.name}</span>
+              <span className="card-meta">{p.bean_type} · {p.weight_g}g</span>
+              <span className="price">{formatPrice(p.price_vnd)}</span>
+            </div>
+          </Link>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
