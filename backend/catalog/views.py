@@ -2,6 +2,7 @@ from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from .models import Product
 from .serializers import ProductSerializer
+from .text import normalize_vi
 
 ALLOWED_ORDERING = {"price_vnd", "-price_vnd", "-created_at", "name"}
 
@@ -29,7 +30,8 @@ class ProductListView(generics.ListAPIView):
 
         q = params.get("q")
         if q:
-            qs = qs.filter(name__icontains=q)
+            for word in normalize_vi(q).split():
+                qs = qs.filter(search_name__contains=word)
 
         roast = params.get("roast_level")
         if roast:
