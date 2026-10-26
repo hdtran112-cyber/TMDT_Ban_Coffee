@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'catalog',
+    'roasting',
 ]
 
 MIDDLEWARE = [
@@ -129,6 +130,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
 REST_FRAMEWORK = {
@@ -136,3 +138,6 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
     ],
 }
+
+# Khóa bảo mật dành cho thiết bị IoT gửi dữ liệu lên hệ thống
+IOT_DEVICE_KEY = "roaster-secret-key-2026"
