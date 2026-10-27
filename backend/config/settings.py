@@ -25,8 +25,12 @@ SECRET_KEY = 'django-insecure-qi3j*@jg5buv#fwzb!5as#v68p8)&tk=0o)1z^k@@b1+^+tx&%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "testserver",
+    "host.wokwi.internal",
+]
 
 # Application definition
 
