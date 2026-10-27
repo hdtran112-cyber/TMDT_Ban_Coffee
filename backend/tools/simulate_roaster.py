@@ -1,79 +1,95 @@
 """
-Script mô phỏng thiết bị IoT gửi điểm đo nhiệt độ mẻ rang theo chu kỳ.
-Cách chạy:
-    python tools/simulate_roaster.py --batch B20261026-01
+Script mô phỏng thiết bị rang cà phê gửi dữ liệu IoT lên backend.
+Đọc khóa từ biến môi trường DEVICE_KEY (hoặc tham số dòng lệnh).
 """
-import argparse
 import os
+import sys
 import time
+import json
+import argparse
 import urllib.request
 import urllib.error
-import json
 
+# Thiết lập đường dẫn backend để import model nếu cần
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+
+# Đọc cấu hình mặc định
 DEFAULT_API_URL = "http://127.0.0.1:8000/api/iot/readings/"
-DEFAULT_DEVICE_KEY = os.environ.get("IOT_DEVICE_KEY", "roaster-secret-key-2026")
-
-# Đường cong nhiệt độ rang cà phê thực tế (Charge -> Turning Point -> Drying -> Maillard -> First Crack -> Drop)
-ROAST_CURVE = [
-    (0, 180.0),
-    (60, 98.5),    # Turning point (hạt mới đổ vào hút nhiệt)
-    (120, 118.0),
-    (180, 135.4),
-    (240, 150.2),
-    (300, 163.8),
-    (360, 175.0),
-    (420, 184.5),
-    (480, 192.0),
-    (540, 198.2),  # First crack (nổ lần 1)
-    (600, 202.5),
-    (660, 205.4),  # Đạt đỉnh chuẩn
-]
+DEVICE_KEY = os.environ.get("DEVICE_KEY", "my-test-secret-key-123")
 
 
-def send_reading(api_url, device_key, batch_code, elapsed_s, temp_c):
-    payload = json.dumps({
+def send_reading(api_url, key, batch_code, elapsed_s, temp_c):
+    data = {
         "batch_code": batch_code,
         "elapsed_s": elapsed_s,
-        "temperature_c": temp_c,
-    }).encode("utf-8")
-
+        "temperature_c": round(temp_c, 1),
+    }
+    payload = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(
         api_url,
         data=payload,
         headers={
             "Content-Type": "application/json",
-            "X-Device-Key": device_key,
+            "X-Device-Key": key,
         },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            alert_str = " [CẢNH BÁO VƯỢT NGƯỠNG!]" if data.get("is_alert") else ""
-            print(f"[OK] {elapsed_s:3d}s -> {temp_c:5.1f}°C{alert_str}")
+            body = resp.read().decode("utf-8")
+            res_json = json.loads(body)
+            alert = " [QUÁ NHIỆT]" if res_json.get("is_alert") else ""
+            print(f"[OK] Giây {elapsed_s:03d}s | Nhiệt độ: {temp_c:.1f}°C{alert}")
+            return True
     except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8")
-        print(f"[LỖI {e.code}] {err_body}")
+        error_content = e.read().decode("utf-8")
+        print(f"[LỖI HTTP {e.code}] {error_content}")
+        return False
+    except Exception as e:
+        print(f"[LỖI KẾT NỐI] {e}")
+        return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Mô phỏng cảm biến máy rang IoT")
-    parser.add_argument("--batch", required=True, help="Mã mẻ rang (VD: B20261026-01)")
-    parser.add_argument("--url", default=DEFAULT_API_URL, help="URL API nhận điểm đo")
-    parser.add_argument("--key", default=DEFAULT_DEVICE_KEY, help="X-Device-Key")
-    parser.add_argument("--interval", type=float, default=0.5, help="Thời gian nghỉ giữa các lần gửi (giây)")
-    parser.add_argument("--overheat", action="store_true", help="Giả lập thêm điểm quá nhiệt để test cảnh báo")
+    parser = argparse.ArgumentParser(description="Mô phỏng cảm biến IoT gửi nhiệt độ lò rang")
+    parser.add_argument("--batch", type=str, required=True, help="Mã mẻ rang (VD: B20261027-02)")
+    parser.add_argument("--key", type=str, default=DEVICE_KEY, help="Khóa bí mật X-Device-Key")
+    parser.add_argument("--interval", type=float, default=2.0, help="Chu kỳ gửi (giây)")
     args = parser.parse_args()
 
-    curve = list(ROAST_CURVE)
-    if args.overheat:
-        curve.append((720, 218.0))  # Điểm vượt ngưỡng để kích hoạt is_alert = True
+    print("=" * 60)
+    print(f"BẮT ĐẦU MÔ PHỎNG THIẾT BỊ RANG CHO MẺ: {args.batch}")
+    print(f"Server API: {DEFAULT_API_URL}")
+    print(f"X-Device-Key: {args.key[:4]}****")
+    print(f"Chu kỳ gửi: {args.interval}s")
+    print("=" * 60)
 
-    print(f"=== Bắt đầu mô phỏng IoT cho mẻ {args.batch} ===")
-    for elapsed_s, temp_c in curve:
-        send_reading(args.url, args.key, args.batch, elapsed_s, temp_c)
+    # Đường cong rang thực tế: Khởi điểm lồng nhiệt -> Hồi nhiệt -> Gia nhiệt -> Crack
+    curve = [
+        (0, 180.0),
+        (30, 130.0),
+        (60, 105.0),  # Turning point
+        (90, 115.0),
+        (120, 132.0),
+        (150, 148.0),
+        (180, 162.0),
+        (210, 175.0),
+        (240, 185.0),
+        (270, 195.0),
+        (300, 203.0),
+        (330, 207.5), # Cảnh báo nếu ngưỡng là 205°C
+    ]
+
+    for elapsed_s, temp in curve:
+        success = send_reading(DEFAULT_API_URL, args.key, args.batch, elapsed_s, temp)
+        if not success:
+            print("Dừng mô phỏng do gặp lỗi từ server.")
+            break
         time.sleep(args.interval)
-    print("=== Hoàn tất gửi dữ liệu mẻ rang ===")
+
+    print("\nHoàn tất chuỗi mô phỏng gửi dữ liệu cảm biến!")
 
 
 if __name__ == "__main__":
