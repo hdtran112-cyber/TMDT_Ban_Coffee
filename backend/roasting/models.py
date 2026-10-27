@@ -69,3 +69,14 @@ class RoastReading(models.Model):
 
     def __str__(self):
         return f"{self.batch.code} @ {self.elapsed_s}s: {self.temperature_c}°C"
+
+def get_latest_finished_batch_for_product(product_id):
+    """
+    Hàm tiện ích cung cấp cho module Catalog (Hiển):
+    Lấy mẻ rang gần nhất đã hoàn thành ('finished') của một sản phẩm cụ thể.
+    """
+    return (
+        RoastBatch.objects.filter(product_id=product_id, status="finished")
+        .order_by("-roasted_at")
+        .first()
+    )

@@ -140,4 +140,6 @@ REST_FRAMEWORK = {
 }
 
 # Khóa bảo mật dành cho thiết bị IoT gửi dữ liệu lên hệ thống
-IOT_DEVICE_KEY = "roaster-secret-key-2026"
+import os
+
+DEVICE_KEY = os.environ.get("DEVICE_KEY", "")
