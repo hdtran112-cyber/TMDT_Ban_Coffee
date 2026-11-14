@@ -1,79 +1,54 @@
-# Thiết Bị Mô Phỏng Lò Rang Cà Phê IoT ESP32 (PlatformIO & Wokwi)
+# MODULE MÔ PHỎNG PHẦN CỨNG IOT LÒ RANG CÀ PHÊ (ESP32 + WOKWI)
 
-Dự án: **TMDT_Ban_Coffee** - Module C: Giám Sát & Truy Xuất Mẻ Rang Bằng IoT  
-**Nhóm:** 12_ĐH-THMT_Nhom14  
-
----
-
-## 1. Giới thiệu
-
-Thư mục này chứa mã nguồn và sơ đồ mạch mô phỏng thiết bị giám sát lò rang cà phê chạy vi điều khiển **ESP32** trên nền tảng **PlatformIO** và trình giả lập **Wokwi**.
-
-Hệ thống cung cấp:
-- **Mô phỏng phần cứng trên Wokwi:** ESP32 DevKit, màn hình LCD 20x4 I2C, cảm biến nhiệt độ / núm vặn biến trở, cảm biến môi trường DHT22, 4 module Relay điều khiển đèn LED, và nút bấm vật lý Start/Stop.
-- **Tích hợp Web Server Localhost (:8180):** ESP32 phục vụ trực tiếp một trang Web Dashboard chuẩn giao diện cà phê tại `http://localhost:8180/` (thông qua tính năng `net.forward` của Wokwi).
-- **Đồng bộ dữ liệu thời gian thực với Django Backend:** Gửi điểm đo nhiệt độ mẻ rang định kỳ lên API `http://host.wokwi.internal:8000/api/iot/readings/` có kèm mã định danh bảo mật `X-Device-Key`.
+**Hệ thống:** TMDT_Ban_Coffee (Website TMĐT bán lẻ cà phê rang xay)  
+**Nhóm thực hiện:** 12_ĐH-THMT_Nhom14  
 
 ---
 
-## 2. Cấu trúc thư mục
-
-```
-iot/roaster-sim/
-├── platformio.ini       # Cấu hình PlatformIO (board esp32dev, thư viện LiquidCrystal_I2C, DHT, ArduinoJson)
-├── wokwi.toml           # Cấu hình nạp firmware Wokwi và port-forwarding (localhost:8180 -> target:80)
-├── diagram.json         # Sơ đồ mạch điện Wokwi (ESP32, LCD 2004, DHT22, Potentiometers, 4 Relays, LEDs)
-├── analysis_server.py   # Script Python phân tích mẻ rang & RoR (Rate of Rise)
-├── include/
-│   ├── secrets.h        # Khóa bảo mật & cấu hình mạng (đã được .gitignore bảo vệ)
-│   └── secrets.h.example # File mẫu cấu hình secrets
-├── src/
-│   └── main.cpp         # Toàn bộ mã nguồn vi điều khiển ESP32 và Web Server tích hợp
-└── README.md            # Tài liệu hướng dẫn sử dụng
-```
-
----
-
-## 3. Sơ đồ mạch & Cổng kết nối (Pinout)
-
-| Linh kiện | Chân kết nối ESP32 | Mô tả |
-|---|---|---|
-| **Màn hình LCD 20x4 (I2C)** | SDA: GPIO 21, SCL: GPIO 22, VCC: 5V, GND | Hiển thị: 12_DH-THMT_Nhom14, Mã mẻ, Nhiệt độ |
-| **Biến trở 1 (Temp Knob)** | SIG: GPIO 34 (ADC1), VCC: 3.3V, GND | Giả lập điều chỉnh nhiệt độ lồng rang (100°C - 240°C) |
-| **Biến trở 2 (Fan Knob)** | SIG: GPIO 35 (ADC1), VCC: 3.3V, GND | Điều chỉnh tốc độ quạt hoặc luồng gió |
-| **Cảm biến DHT22** | SDA: GPIO 15, VCC: 3.3V, GND | Đo nhiệt độ và độ ẩm môi trường phòng rang |
-| **Nút bấm (Start/Stop)** | Pin: GPIO 13, GND (INPUT_PULLUP) | Nút cứng chuyển trạng thái Bắt đầu / Dừng rang |
-| **Relay 1 + LED Đỏ** | IN: GPIO 26 | Điện trở gia nhiệt lò rang (Heater) |
-| **Relay 2 + LED Xanh lá** | IN: GPIO 27 | Quạt làm nguội cà phê (Cooling Fan) |
-| **Relay 3 + LED Xanh dương** | IN: GPIO 14 | Động cơ quay lồng rang (Drum Motor) |
-| **Relay 4 + LED Vàng** | IN: GPIO 12 | Quạt hút khói / Đèn cảnh báo quá nhiệt (Exhaust/Alert) |
+## 1. Kiến trúc phần cứng mô phỏng (`diagram.json`)
+Sơ đồ mạch gồm 4 linh kiện chuẩn Wokwi:
+1. **Vi điều khiển:** `board-esp32-devkit-c-v4` (ESP32 38-pin / DevKit V1).
+2. **Biến trở xoay tạo sự cố (Potentiometer):** `wokwi-potentiometer`
+   - Chức năng: Giả lập tác động ngoại cảnh / lỗi gia nhiệt lồng rang (tạo độ lệch nhiệt cộng thêm từ `0°C` đến `+35°C`).
+   - Nối chân: `GND` -> `esp:GND.1`, `VCC` -> `esp:3V3`, `SIG` -> `esp:34` (Analog Input).
+3. **Màn hình hiển thị tại chỗ (LCD 1602 I2C):** `wokwi-lcd1602` (I2C address `0x27`).
+   - Chức năng:
+     - Dòng 1: Mã mẻ rang và trạng thái (`B20261027-02 [OK]` hoặc `[ALERT!]`).
+     - Dòng 2: Nhiệt độ tức thời và mã nhóm (`T: 185.0°C Nhom14`).
+   - Nối chân: `GND` -> `esp:GND.2`, `VCC` -> `esp:5V`, `SDA` -> `esp:21`, `SCL` -> `esp:22`.
+4. **Đèn báo động quá nhiệt (LED Đỏ):** `wokwi-led`
+   - Chức năng: Bật sáng ngay lập tức khi nhiệt độ lồng rang vượt ngưỡng an toàn (`> 205.0°C`).
+   - Nối chân: `A` (Anode) -> `esp:2`, `C` (Cathode) -> `esp:GND.1`.
 
 ---
 
-## 4. Hướng dẫn chạy mô phỏng trên VS Code
+## 2. Kết nối Backend Django & Giao tiếp API
+- **Endpoint tiếp nhận dữ liệu:** `POST http://10.0.2.2:8000/api/iot/readings/`
+- **HTTP Headers:**
+  - `Content-Type: application/json`
+  - `X-Device-Key: my-test-secret-key-123`
+- **Payload JSON mẫu:**
+  ```json
+  {
+    "batch_code": "B20261027-02",
+    "elapsed_s": 90,
+    "temperature_c": 195.5
+  }
+  ```
+- **Chu kỳ gửi:** 3 giây/lần.
 
-### Cách 1: Chạy mô phỏng Wokwi trong VS Code
-1. Cài extension **Wokwi Simulator** trong VS Code.
-2. Nhấp mở file `diagram.json`.
-3. Bấm nút Play ▶️ màu xanh lá để bắt đầu mô phỏng.
-4. Màn hình LCD 20x4 sẽ hiển thị:
-   ```
-   12_DH-THMT_Nhom14
-   HE THONG LO RANG
-   Me: B20261027-01
-   T: 180.0°C [R]
-   ```
-5. Mở trình duyệt Web tại: `http://localhost:8180/` để xem Web Dashboard.
+---
 
-### Cách 2: Chạy trực tiếp trên trình duyệt Web Wokwi (Không cần cài Extension)
-1. Truy cập [https://wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32).
-2. Dán nội dung của file `diagram.json` vào tab `diagram.json` trên Wokwi.
-3. Dán mã nguồn từ `src/main.cpp` vào tab code.
-4. Bấm **Play** để xem mô phỏng hoạt động trực tiếp trên web!
+## 3. Giao diện Web Dashboard Localhost (`http://localhost:8180/`)
+- Mở trình duyệt truy cập `http://localhost:8180/` khi Wokwi đang chạy.
+- Giao diện hiển thị trực quan thông số nhiệt độ thời gian thực, thời gian rang, mã mẻ, trạng thái đèn LED đỏ cảnh báo và trạng thái kết nối Backend Django.
+- Tên nhóm hiển thị trên giao diện: **12_ĐH-THMT_Nhom14**.
 
-### Cách 3: Chạy nhanh Web Dashboard bằng Analysis Server
-```bash
-cd iot/roaster-sim
-python analysis_server.py
-```
-Mở trình duyệt tại `http://localhost:8180/` để xem bảng giám sát và điều khiển.
+---
+
+## 4. Hướng dẫn chạy mô phỏng
+1. Mở file `iot_wokwi/diagram.json` trong VS Code.
+2. Nhấn nút **Play ▶️ (Start Simulation)** của Wokwi trên góc phải hoặc thanh công cụ.
+3. Màn hình LCD 1602 sẽ bật sáng, hiển thị tên nhóm và các thông số mẻ rang.
+4. Xoay núm biến trở để kiểm tra cảnh báo quá nhiệt (khi nhiệt độ vượt `205°C`, LED đỏ sẽ sáng và LCD đổi thành `[ALERT!]`).
+5. Truy cập `http://localhost:8180/` trên trình duyệt máy tính để xem Web Dashboard thời gian thực.

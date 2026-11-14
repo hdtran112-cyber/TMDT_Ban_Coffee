@@ -4,7 +4,6 @@
 #include <HTTPClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <ArduinoJson.h>
 
 // ==============================================================================
 // 1. CẤU HÌNH THÔNG TIN HỆ THỐNG THEO ĐẶC TẢ
@@ -94,25 +93,16 @@ float calculateBaseTemp(int sec) {
 // 4. ĐỌC CẢM BIẾN, TÍNH TOÁN & CẬP NHẬT HIỂN THỊ
 // ==============================================================================
 void updateTelemetry() {
-  // 1. Tính nhiệt độ gốc theo đường cong thời gian
   float baseTemp = calculateBaseTemp(elapsedSeconds);
-
-  // 2. Đọc biến trở giả lập lỗi gia nhiệt (0 đến +35°C theo đặc tả)
   int rawPot = analogRead(PIN_POT_FAULT);
   faultOffset = ((float)rawPot / 4095.0) * 35.0;
-
-  // 3. Nhiệt độ tức thời = Nhiệt độ mẻ rang + Độ lệch can thiệp
   currentTemp = baseTemp + faultOffset;
 
-  // 4. Kiểm tra cảnh báo an toàn
   isAlert = (currentTemp > TARGET_MAX_TEMP);
-
-  // 5. Điều khiển đèn LED đỏ (GPIO 2)
   digitalWrite(PIN_LED_ALERT, isAlert ? HIGH : LOW);
 }
 
 void updateLCD() {
-  // Dòng 1 (16 ký tự): Mã mẻ rang & Trạng thái [OK] / [ALERT!]
   lcd.setCursor(0, 0);
   lcd.print(currentBatchCode);
   if (isAlert) {
@@ -121,7 +111,6 @@ void updateLCD() {
     lcd.print(" [OK]   ");
   }
 
-  // Dòng 2 (16 ký tự): Nhiệt độ tức thời & Nhóm
   lcd.setCursor(0, 1);
   lcd.print("T:");
   lcd.print(currentTemp, 1);
@@ -143,13 +132,9 @@ void sendReadingToBackend() {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Key", deviceKey);
 
-  StaticJsonDocument<256> doc;
-  doc["batch_code"]    = currentBatchCode;
-  doc["elapsed_s"]     = elapsedSeconds;
-  doc["temperature_c"] = serialized(String(currentTemp, 1));
-
-  String payload;
-  serializeJson(doc, payload);
+  // Tạo payload JSON theo đúng đặc tả:
+  // {"batch_code": "B20261027-02", "elapsed_s": 90, "temperature_c": 195.5}
+  String payload = "{\"batch_code\":\"" + currentBatchCode + "\",\"elapsed_s\":" + String(elapsedSeconds) + ",\"temperature_c\":" + String(currentTemp, 1) + "}";
 
   int httpCode = http.POST(payload);
   lastHttpCode = httpCode;
@@ -160,7 +145,6 @@ void sendReadingToBackend() {
     lastApiStatus = "Lỗi HTTP: " + http.errorToString(httpCode);
   }
 
-  // Xuất log ra Serial Monitor
   Serial.print("[IoT] Giây: ");
   Serial.print(elapsedSeconds);
   Serial.print("s | Nhiet do: ");
@@ -191,13 +175,11 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
     :root {
       --primary: #6F4E37;
       --primary-dark: #4A2C11;
-      --accent: #D4A373;
       --bg: #F4F6F9;
       --card-bg: #FFFFFF;
       --text: #212529;
       --danger: #DC3545;
       --success: #28A745;
-      --warning: #FFC107;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 20px; }
@@ -242,11 +224,7 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
     @keyframes blink { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     .led-indicator { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #CCC; margin-right: 6px; }
     .led-on { background: #DC3545; box-shadow: 0 0 10px #DC3545; }
-    .actions { display: flex; gap: 10px; margin-top: 15px; }
-    .btn { flex: 1; padding: 11px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 14px; }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-dark); }
-    .btn-secondary { background: #E9ECEF; color: var(--text); }
+    .btn { width: 100%; margin-top: 15px; padding: 11px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; background: var(--primary); color: white; }
   </style>
 </head>
 <body>
@@ -272,7 +250,7 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
         </div>
         <div class="metric">
           <span class="metric-label">🏷️ Mã mẻ rang:</span>
-          <span class="metric-val" id="batchVal">B20261027-02</span>
+          <span class="metric-val">B20261027-02</span>
         </div>
         <div class="metric">
           <span class="metric-label">🎯 Ngưỡng cảnh báo:</span>
@@ -294,9 +272,7 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           <span class="metric-label">🌐 Kết nối Django API:</span>
           <span class="metric-val" id="apiStatus" style="font-size: 13px; color: var(--primary);">Đang gửi...</span>
         </div>
-        <div class="actions">
-          <button class="btn btn-primary" onclick="resetTimer()">Đặt lại thời gian (0s)</button>
-        </div>
+        <button class="btn" onclick="resetTimer()">Đặt lại thời gian (0s)</button>
       </div>
     </div>
   </div>
@@ -310,7 +286,6 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           var m = Math.floor(d.elapsed_s / 60);
           var s = d.elapsed_s % 60;
           document.getElementById('timeVal').innerText = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ' (' + d.elapsed_s + 's)';
-          document.getElementById('batchVal').innerText = d.batch_code;
           document.getElementById('faultVal').innerText = '+' + d.fault_offset.toFixed(1) + ' °C';
           document.getElementById('apiStatus').innerText = d.last_api_status;
 
@@ -349,17 +324,7 @@ void handleRoot() {
 }
 
 void handleStatus() {
-  StaticJsonDocument<256> doc;
-  doc["group"]           = GROUP_NAME;
-  doc["batch_code"]      = currentBatchCode;
-  doc["elapsed_s"]       = elapsedSeconds;
-  doc["temperature_c"]   = currentTemp;
-  doc["fault_offset"]    = faultOffset;
-  doc["is_alert"]        = isAlert;
-  doc["last_api_status"] = lastApiStatus;
-
-  String jsonOut;
-  serializeJson(doc, jsonOut);
+  String jsonOut = "{\"group\":\"" + String(GROUP_NAME) + "\",\"batch_code\":\"" + currentBatchCode + "\",\"elapsed_s\":" + String(elapsedSeconds) + ",\"temperature_c\":" + String(currentTemp, 1) + ",\"fault_offset\":" + String(faultOffset, 1) + ",\"is_alert\":" + (isAlert ? "true" : "false") + ",\"last_api_status\":\"" + lastApiStatus + "\"}";
   server.send(200, "application/json", jsonOut);
 }
 
