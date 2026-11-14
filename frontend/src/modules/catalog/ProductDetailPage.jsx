@@ -77,7 +77,7 @@ export default function ProductDetailPage() {
           )}
           {notice?.type === "error" && <p className="msg-error">{notice.text}</p>}
           {notice?.type === "login" && (
-            <p className="msg-error">Bạn cần đăng nhập để thêm vào giỏ. <Link to="/login">Đăng nhập</Link></p>
+            <p className="msg-error">Bạn cần đăng nhập để thêm vào giỏ. <Link to={`/login?next=/products/${id}`}>Đăng nhập</Link></p>
           )}
         </div>
       </div>

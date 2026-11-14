@@ -7,10 +7,7 @@ import CheckoutPage from "./modules/orders/CheckoutPage";
 import OrderDetailPage from "./modules/orders/OrderDetailPage";
 import OrdersPage from "./modules/orders/OrdersPage";
 import TracePage from "./modules/roasting/TracePage";
-
-function ComingSoon({ title }) {
-  return <p>{title}: đang làm.</p>;
-}
+import AuthPage from "./modules/accounts/AuthPage";
 
 export default function App() {
   return (
@@ -24,7 +21,8 @@ export default function App() {
         <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/trace" element={<TracePage />} />
         <Route path="/trace/:code" element={<TracePage />} />
-        <Route path="/login" element={<ComingSoon title="Đăng nhập (Anh)" />} />
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/register" element={<AuthPage mode="register" />} />
         <Route path="*" element={<p>Không tìm thấy trang.</p>} />
       </Route>
     </Routes>

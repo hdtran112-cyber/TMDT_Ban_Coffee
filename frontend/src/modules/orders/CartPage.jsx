@@ -63,7 +63,7 @@ export default function CartPage() {
       <div>
         <h1 className="page-title">Giỏ hàng</h1>
         <p className="msg-muted">Bạn cần đăng nhập để xem giỏ hàng.</p>
-        <Link to="/login" className="btn">Đăng nhập</Link>
+        <Link to="/login?next=/cart" className="btn">Đăng nhập</Link>
       </div>
     );
   }

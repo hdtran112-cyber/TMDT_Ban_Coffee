@@ -66,7 +66,7 @@ export default function CheckoutPage() {
       <div>
         <h1 className="page-title">Đặt hàng</h1>
         <p className="msg-muted">Bạn cần đăng nhập để đặt hàng.</p>
-        <Link to="/login" className="btn">Đăng nhập</Link>
+        <Link to="/login?next=/checkout" className="btn">Đăng nhập</Link>
       </div>
     );
   }
