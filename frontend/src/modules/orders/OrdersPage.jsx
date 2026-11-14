@@ -35,7 +35,7 @@ export default function OrdersPage() {
       <div>
         <h1 className="page-title">Đơn của tôi</h1>
         <p className="msg-muted">Bạn cần đăng nhập để xem đơn hàng.</p>
-        <Link to="/login" className="btn">Đăng nhập</Link>
+        <Link to="/login?next=/orders" className="btn">Đăng nhập</Link>
       </div>
     );
   }
