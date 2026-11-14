@@ -6,6 +6,7 @@ import CartPage from "./modules/orders/CartPage";
 import CheckoutPage from "./modules/orders/CheckoutPage";
 import OrderDetailPage from "./modules/orders/OrderDetailPage";
 import OrdersPage from "./modules/orders/OrdersPage";
+import TracePage from "./modules/roasting/TracePage";
 
 function ComingSoon({ title }) {
   return <p>{title}: đang làm.</p>;
@@ -21,7 +22,8 @@ export default function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />
-        <Route path="/trace" element={<ComingSoon title="Truy xuất mẻ rang (Cường)" />} />
+        <Route path="/trace" element={<TracePage />} />
+        <Route path="/trace/:code" element={<TracePage />} />
         <Route path="/login" element={<ComingSoon title="Đăng nhập (Anh)" />} />
         <Route path="*" element={<p>Không tìm thấy trang.</p>} />
       </Route>
