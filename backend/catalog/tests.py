@@ -133,3 +133,34 @@ class CatalogIntegrationTests(TestCase):
 
         self.product.refresh_from_db()
         self.assertFalse(self.product.is_active)
+
+
+class SeedProductsTests(TestCase):
+    """Lệnh seed_products: đủ 10 sản phẩm, chạy lại không trùng, không ghi đè tồn kho."""
+
+    def test_seed_twice_no_duplicates_and_keeps_stock(self):
+        from django.core.management import call_command
+        from io import StringIO
+
+        call_command("seed_products", stdout=StringIO())
+        self.assertEqual(Product.objects.count(), 10)
+
+        p = Product.objects.get(name="Arabica Cầu Đất")
+        self.assertTrue(p.image_url.endswith("/images/products/arabica-cau-dat.jpg"))
+        p.stock = 7  # giả sử khách đã mua bớt
+        p.save()
+
+        call_command("seed_products", stdout=StringIO())
+        self.assertEqual(Product.objects.count(), 10)
+        self.assertEqual(Product.objects.get(name="Arabica Cầu Đất").stock, 7)
+
+    def test_seed_images_exist(self):
+        from pathlib import Path
+        from django.conf import settings
+        from catalog.management.commands.seed_products import SAMPLES
+
+        folder = Path(settings.BASE_DIR).parent / "frontend" / "public" / "images" / "products"
+        for *_, image in SAMPLES:
+            path = folder / image
+            self.assertTrue(path.exists(), f"Thiếu ảnh {image}")
+            self.assertLess(path.stat().st_size, 300 * 1024, f"Ảnh {image} quá 300 KB")
