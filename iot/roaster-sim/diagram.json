@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "author": "Luong The Cuong - 1250080025 (TMDT_Ban_Coffee IoT Roaster Simulator)",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 60, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-lcd2004",
+      "id": "lcd",
+      "top": -160,
+      "left": 40,
+      "attrs": { "pins": "i2c" }
+    },
+    { "type": "wokwi-dht22", "id": "dht", "top": -40, "left": -180, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "pot_temp", "top": 70, "left": -180, "attrs": { "label": "Temp Knob" } },
+    { "type": "wokwi-potentiometer", "id": "pot_fan", "top": 180, "left": -180, "attrs": { "label": "Fan Knob" } },
+    { "type": "wokwi-pushbutton", "id": "btn", "top": 280, "left": -150, "attrs": { "color": "green", "label": "Start/Stop" } },
+
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -30, "left": 180, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": -20, "left": 280, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_heater", "top": -20, "left": 330, "attrs": { "color": "red", "label": "Heater" } },
+
+    { "type": "wokwi-relay-module", "id": "relay2", "top": 50, "left": 180, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r2", "top": 60, "left": 280, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_fan", "top": 60, "left": 330, "attrs": { "color": "green", "label": "Cooling Fan" } },
+
+    { "type": "wokwi-relay-module", "id": "relay3", "top": 130, "left": 180, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r3", "top": 140, "left": 280, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_drum", "top": 140, "left": 330, "attrs": { "color": "blue", "label": "Drum Motor" } },
+
+    { "type": "wokwi-relay-module", "id": "relay4", "top": 210, "left": 180, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r4", "top": 220, "left": 280, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_exhaust", "top": 220, "left": 330, "attrs": { "color": "yellow", "label": "Exhaust/Alert" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "lcd:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "lcd:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "lcd:SDA", "esp:21", "blue", [ "v0" ] ],
+    [ "lcd:SCL", "esp:22", "yellow", [ "v0" ] ],
+
+    [ "dht:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "dht:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "dht:SDA", "esp:15", "green", [ "v0" ] ],
+
+    [ "pot_temp:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_temp:2", "esp:34", "purple", [ "v0" ] ],
+    [ "pot_temp:3", "esp:3V3", "red", [ "v0" ] ],
+
+    [ "pot_fan:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_fan:2", "esp:35", "orange", [ "v0" ] ],
+    [ "pot_fan:3", "esp:3V3", "red", [ "v0" ] ],
+
+    [ "btn:1.l", "esp:13", "green", [ "v0" ] ],
+    [ "btn:2.l", "esp:GND.1", "black", [ "v0" ] ],
+
+    [ "relay1:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "relay1:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "relay1:IN", "esp:26", "blue", [ "v0" ] ],
+    [ "relay1:COM", "esp:3V3", "red", [ "v0" ] ],
+    [ "relay1:NO", "r1:1", "green", [ "v0" ] ],
+    [ "r1:2", "led_heater:A", "green", [ "v0" ] ],
+    [ "led_heater:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "relay2:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "relay2:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "relay2:IN", "esp:27", "blue", [ "v0" ] ],
+    [ "relay2:COM", "esp:3V3", "red", [ "v0" ] ],
+    [ "relay2:NO", "r2:1", "green", [ "v0" ] ],
+    [ "r2:2", "led_fan:A", "green", [ "v0" ] ],
+    [ "led_fan:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "relay3:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "relay3:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "relay3:IN", "esp:14", "blue", [ "v0" ] ],
+    [ "relay3:COM", "esp:3V3", "red", [ "v0" ] ],
+    [ "relay3:NO", "r3:1", "green", [ "v0" ] ],
+    [ "r3:2", "led_drum:A", "green", [ "v0" ] ],
+    [ "led_drum:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "relay4:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "relay4:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "relay4:IN", "esp:12", "blue", [ "v0" ] ],
+    [ "relay4:COM", "esp:3V3", "red", [ "v0" ] ],
+    [ "relay4:NO", "r4:1", "green", [ "v0" ] ],
+    [ "r4:2", "led_exhaust:A", "green", [ "v0" ] ],
+    [ "led_exhaust:C", "esp:GND.2", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
