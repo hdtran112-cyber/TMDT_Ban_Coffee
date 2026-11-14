@@ -29,14 +29,14 @@
       "id": "pot_gas",
       "top": 130,
       "left": -120,
-      "attrs": { "label": "Gas/Lua (0-100%)" }
+      "attrs": { "label": "Gas/Lua (0-100%)", "value": "0" }
     },
     {
       "type": "wokwi-potentiometer",
       "id": "pot_air",
       "top": 240,
       "left": -120,
-      "attrs": { "label": "Air/Gio (0-100%)" }
+      "attrs": { "label": "Air/Gio (0-100%)", "value": "25" }
     },
     {
       "type": "wokwi-pushbutton",
