@@ -231,8 +231,12 @@ void sendReadingToBackend() {
     return;
   }
 
+  server.handleClient();
+
   HTTPClient http;
   http.begin(djangoApiUrl);
+  http.setConnectTimeout(400); // 400ms timeout để không nghẽn Web Server
+  http.setTimeout(400);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Device-Key", deviceKey);
 
@@ -252,6 +256,7 @@ void sendReadingToBackend() {
     elapsedSeconds, currentTemp, baseTemp, gasEffect, airCooling, gasPercent, airPercent, servoAngle, roastingPhase.c_str(), isAlert ? "QUÁ NHIỆT!" : (isWarning ? "CẢNH BÁO" : "BÌNH THƯỜNG"), lastApiStatus.c_str());
 
   http.end();
+  server.handleClient();
 }
 
 // ==============================================================================
@@ -640,7 +645,7 @@ void loop() {
 
   // Chu kỳ gửi dữ liệu về Django REST API (mỗi 3 giây theo đặc tả)
   if (currentMillis - lastApiSendTime >= API_INTERVAL) {
-    lastApiSendTime = currentMillis;
     sendReadingToBackend();
+    lastApiSendTime = millis();
   }
 }

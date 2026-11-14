@@ -25,12 +25,7 @@ SECRET_KEY = 'django-insecure-qi3j*@jg5buv#fwzb!5as#v68p8)&tk=0o)1z^k@@b1+^+tx&%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "testserver",
-    "host.wokwi.internal",
-]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "host.wokwi.internal", "10.0.2.2", "*"]
 
 # Application definition
 
@@ -146,4 +141,4 @@ REST_FRAMEWORK = {
 # Khóa bảo mật dành cho thiết bị IoT gửi dữ liệu lên hệ thống
 import os
 
-DEVICE_KEY = os.environ.get("DEVICE_KEY", "")
+DEVICE_KEY = os.environ.get("DEVICE_KEY", "my-test-secret-key-123")
