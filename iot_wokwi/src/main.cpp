@@ -21,8 +21,9 @@ const float ALERT_MAX_TEMP   = 205.0; // Quá nhiệt nguy hiểm -> Bật còi 
 const char* ssid     = "Wokwi-GUEST";
 const char* password = "";
 
-// Cấu hình Django Backend API (10.0.2.2 hoặc host.wokwi.internal)
-String djangoApiUrl     = "http://10.0.2.2:8000/api/iot/readings/";
+// Cấu hình Django Backend API (host.wokwi.internal hoặc 10.0.2.2)
+String djangoApiUrl     = "http://host.wokwi.internal:8000/api/iot/readings/";
+String fallbackApiUrl   = "http://10.0.2.2:8000/api/iot/readings/";
 String deviceKey        = "my-test-secret-key-123";
 String currentBatchCode = DEFAULT_BATCH;
 
@@ -157,17 +158,22 @@ void updatePhysicsAndControls() {
   }
 
   // 5. Tính toán cân bằng nhiệt độ hạt (Bean Temp)
-  // currentTemp = baseTemp + gasEffect - airCooling
+  // 5. Cân bằng nhiệt hạt:
+  // Gas: đẩy nhiệt độ tăng mạnh lên tới +115°C (cho phép vặn núm Gas vượt 205°C gây quá nhiệt ngay lập tức)
+  // Air: làm mát lồng rang tối đa -25°C
   baseTemp = calculateBaseTemp(elapsedSeconds);
-  gasEffect = (gasPercent / 100.0) * 30.0;      // Lửa cộng thêm tối đa +30°C
-  airCooling = (airPercent / 100.0) * 12.0;    // Gió làm mát tối đa -12°C
+  gasEffect = (gasPercent / 100.0) * 115.0;
+  airCooling = (airPercent / 100.0) * 25.0;
 
   currentTemp = baseTemp + gasEffect - airCooling;
+  if (currentTemp < 90.0) currentTemp = 90.0;
+  if (currentTemp > 240.0) currentTemp = 240.0;
+
   roastingPhase = determinePhase(currentTemp);
 
   // 6. Xử lý trạng thái cảnh báo & Điều khiển LED / Buzzer
   if (currentTemp > ALERT_MAX_TEMP) {
-    // Quá nhiệt nguy hiểm (> 205°C)
+    // Quá nhiệt nguy hiểm (> 205°C) -> LED Đỏ sáng + Buzzer kêu
     isAlert = true;
     isWarning = false;
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -175,7 +181,7 @@ void updatePhysicsAndControls() {
     digitalWrite(PIN_LED_RED, HIGH);
     tone(PIN_BUZZER, 1200, 250); // Còi kêu cảnh báo
   } else if (currentTemp > WARN_TEMP) {
-    // Cảnh báo giai đoạn nhạy cảm / Chuẩn bị First crack (195°C - 205°C)
+    // Cảnh báo giai đoạn nhạy cảm (195°C - 205°C) -> LED Vàng sáng
     isAlert = false;
     isWarning = true;
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -183,7 +189,7 @@ void updatePhysicsAndControls() {
     digitalWrite(PIN_LED_RED, LOW);
     noTone(PIN_BUZZER);
   } else {
-    // Bình thường (<= 195°C)
+    // Bình thường (<= 195°C) -> LED Xanh sáng
     isAlert = false;
     isWarning = false;
     digitalWrite(PIN_LED_GREEN, HIGH);
@@ -233,17 +239,27 @@ void sendReadingToBackend() {
 
   server.handleClient();
 
-  HTTPClient http;
-  http.begin(djangoApiUrl);
-  http.setConnectTimeout(400); // 400ms timeout để không nghẽn Web Server
-  http.setTimeout(400);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Device-Key", deviceKey);
-
   // Payload theo hợp đồng: {"batch_code": "B20261027-02", "elapsed_s": 90, "temperature_c": 198.5}
   String payload = "{\"batch_code\":\"" + currentBatchCode + "\",\"elapsed_s\":" + String(elapsedSeconds) + ",\"temperature_c\":" + String(currentTemp, 1) + "}";
 
+  HTTPClient http;
+  http.begin(djangoApiUrl);
+  http.setConnectTimeout(300);
+  http.setTimeout(300);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("X-Device-Key", deviceKey);
+
   int httpCode = http.POST(payload);
+  if (httpCode <= 0) {
+    // Thử fallback sang 10.0.2.2 nếu host.wokwi.internal không phản hồi
+    http.end();
+    http.begin(fallbackApiUrl);
+    http.setConnectTimeout(300);
+    http.setTimeout(300);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Device-Key", deviceKey);
+    httpCode = http.POST(payload);
+  }
   lastHttpCode = httpCode;
 
   if (httpCode > 0) {
