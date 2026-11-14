@@ -1,54 +1,67 @@
-# MODULE MÔ PHỎNG PHẦN CỨNG IOT LÒ RANG CÀ PHÊ (ESP32 + WOKWI)
+# ĐẶC TẢ KỸ THUẬT: HỆ THỐNG IOT GIÁM SÁT & ĐIỀU KHIỂN LÒ RANG CÀ PHÊ CÔNG NGHIỆP (ESP32 + WOKWI FULL RIG)
 
-**Hệ thống:** TMDT_Ban_Coffee (Website TMĐT bán lẻ cà phê rang xay)  
+**Dự án:** TMDT_Ban_Coffee (Website TMĐT bán lẻ cà phê tích hợp truy xuất nguồn gốc & giám sát mẻ rang IoT)  
 **Nhóm thực hiện:** 12_ĐH-THMT_Nhom14  
 
 ---
 
-## 1. Kiến trúc phần cứng mô phỏng (`diagram.json`)
-Sơ đồ mạch gồm 4 linh kiện chuẩn Wokwi:
-1. **Vi điều khiển:** `board-esp32-devkit-c-v4` (ESP32 38-pin / DevKit V1).
-2. **Biến trở xoay tạo sự cố (Potentiometer):** `wokwi-potentiometer`
-   - Chức năng: Giả lập tác động ngoại cảnh / lỗi gia nhiệt lồng rang (tạo độ lệch nhiệt cộng thêm từ `0°C` đến `+35°C`).
-   - Nối chân: `GND` -> `esp:GND.1`, `VCC` -> `esp:3V3`, `SIG` -> `esp:34` (Analog Input).
-3. **Màn hình hiển thị tại chỗ (LCD 1602 I2C):** `wokwi-lcd1602` (I2C address `0x27`).
-   - Chức năng:
-     - Dòng 1: Mã mẻ rang và trạng thái (`B20261027-02 [OK]` hoặc `[ALERT!]`).
-     - Dòng 2: Nhiệt độ tức thời và mã nhóm (`T: 185.0°C Nhom14`).
-   - Nối chân: `GND` -> `esp:GND.2`, `VCC` -> `esp:5V`, `SDA` -> `esp:21`, `SCL` -> `esp:22`.
-4. **Đèn báo động quá nhiệt (LED Đỏ):** `wokwi-led`
-   - Chức năng: Bật sáng ngay lập tức khi nhiệt độ lồng rang vượt ngưỡng an toàn (`> 205.0°C`).
-   - Nối chân: `A` (Anode) -> `esp:2`, `C` (Cathode) -> `esp:GND.1`.
+## 1. Danh sách linh kiện & Sơ đồ nối chân (`diagram.json`)
+
+Hệ thống thiết kế theo mô hình trạm điều khiển lò rang cà phê công nghiệp chuẩn với 9 nhóm linh kiện:
+
+| STT | Linh kiện | ID Wokwi | Chân kết nối ESP32 | Chức năng |
+|:---:|---|---|---|---|
+| 1 | **ESP32 DevKit V1** | `esp` | Vi điều khiển trung tâm | Xử lý cân bằng nhiệt, điều khiển ngoại vi, Web Server & đẩy API |
+| 2 | **Màn hình LCD 20x4 (I2C)** | `lcd` | SDA: GPIO 21, SCL: GPIO 22, VCC: 5V, GND | Hiển thị 4 dòng: Mã mẻ, Bean Temp, Env Temp, Gas %, Air %, Phase |
+| 3 | **Cảm biến DHT22** | `dht` | SDA: GPIO 4, VCC: 3V3, GND | Đo nhiệt độ và độ ẩm môi trường xưởng rang / ống xả |
+| 4 | **Chiết áp Gas/Lửa** | `pot_gas` | SIG: GPIO 34 (ADC1), VCC: 3V3, GND | Chỉnh công suất ngọn lửa đốt lồng rang (0% - 100%) |
+| 5 | **Chiết áp Gió/Airflow** | `pot_air` | SIG: GPIO 35 (ADC1), VCC: 3V3, GND | Chỉnh lưu lượng gió hút khói (0% - 100%) |
+| 6 | **Động cơ Servo van gió** | `servo` | PWM: GPIO 18, V+: 5V, GND | Quay góc 0° - 180° theo % lưu lượng gió |
+| 7 | **LED Xanh lá (Normal)** | `led_green` | Anode: GPIO 12, Cathode: GND | Lò hoạt động bình thường (<= 195.0°C) |
+| 8 | **LED Vàng (Warning)** | `led_yellow` | Anode: GPIO 14, Cathode: GND | Cảnh báo giai đoạn nhạy cảm (195.0°C - 205.0°C) |
+| 9 | **LED Đỏ (Alert)** | `led_red` | Anode: GPIO 27, Cathode: GND | Báo động quá nhiệt nguy hiểm (> 205.0°C) |
+| 10 | **Còi Buzzer báo động** | `buzzer` | Signal: GPIO 26, GND | Kêu bíp cảnh báo khi quá nhiệt (> 205.0°C) |
+| 11 | **Nút nhấn Xả mẻ / Emergency** | `btn_dump` | Pin: GPIO 19 (INPUT_PULLUP), GND | Nhấn kích hoạt chế độ xả nhiệt khẩn cấp (Air 100%, Gas 0%) |
 
 ---
 
-## 2. Kết nối Backend Django & Giao tiếp API
-- **Endpoint tiếp nhận dữ liệu:** `POST http://10.0.2.2:8000/api/iot/readings/`
-- **HTTP Headers:**
+## 2. Mô hình vật lý & Thuật toán cân bằng nhiệt
+- **Nhiệt độ nền tự động (`baseTemp`):** Tăng dần theo đường cong rang chuẩn từ `110.0°C` lên `195.0°C` theo thời gian `elapsed_s`.
+- **Tác động của Lửa (`gasEffect`):** Lửa càng lớn, nhiệt cộng thêm càng cao: `gasEffect = (gasPercent / 100) * 30.0` (tối đa `+30.0°C`).
+- **Tác động làm mát của Gió (`airCooling`):** Gió hút càng mạnh, nhiệt giảm bớt: `airCooling = (airPercent / 100) * 12.0` (tối đa `-12.0°C`).
+- **Nhiệt độ tức thời:**
+  $$\text{currentTemp} = \text{baseTemp} + \text{gasEffect} - \text{airCooling}$$
+- **4 Pha rang hiển thị LCD 20x4:**
+  - `< 140°C`: `DRYING`
+  - `140°C - 175°C`: `YELLOWING`
+  - `175°C - 196°C`: `FIRST CRACK`
+  - `> 196°C`: `DEVELOPMENT`
+
+---
+
+## 3. Giao tiếp Backend Django REST Framework (Hợp đồng API)
+- **Endpoint:** `POST http://10.0.2.2:8000/api/iot/readings/` (hoặc `http://host.wokwi.internal:8000/api/iot/readings/`)
+- **Headers:**
   - `Content-Type: application/json`
   - `X-Device-Key: my-test-secret-key-123`
-- **Payload JSON mẫu:**
+- **Payload:**
   ```json
   {
     "batch_code": "B20261027-02",
     "elapsed_s": 90,
-    "temperature_c": 195.5
+    "temperature_c": 198.5
   }
   ```
 - **Chu kỳ gửi:** 3 giây/lần.
 
 ---
 
-## 3. Giao diện Web Dashboard Localhost (`http://localhost:8180/`)
-- Mở trình duyệt truy cập `http://localhost:8180/` khi Wokwi đang chạy.
-- Giao diện hiển thị trực quan thông số nhiệt độ thời gian thực, thời gian rang, mã mẻ, trạng thái đèn LED đỏ cảnh báo và trạng thái kết nối Backend Django.
-- Tên nhóm hiển thị trên giao diện: **12_ĐH-THMT_Nhom14**.
-
----
-
-## 4. Hướng dẫn chạy mô phỏng
-1. Mở file `iot_wokwi/diagram.json` trong VS Code.
-2. Nhấn nút **Play ▶️ (Start Simulation)** của Wokwi trên góc phải hoặc thanh công cụ.
-3. Màn hình LCD 1602 sẽ bật sáng, hiển thị tên nhóm và các thông số mẻ rang.
-4. Xoay núm biến trở để kiểm tra cảnh báo quá nhiệt (khi nhiệt độ vượt `205°C`, LED đỏ sẽ sáng và LCD đổi thành `[ALERT!]`).
-5. Truy cập `http://localhost:8180/` trên trình duyệt máy tính để xem Web Dashboard thời gian thực.
+## 4. Giao diện Web Dashboard Localhost (`http://localhost:8180/`)
+- Truy cập trực tiếp tại `http://localhost:8180/` khi Wokwi đang chạy.
+- Hiển thị trực quan:
+  - Tên nhóm: **12_ĐH-THMT_Nhom14**.
+  - Nhiệt độ hạt Bean Temp tức thời và Pha rang (Drying / Yellowing / First Crack / Development).
+  - Thanh tiến trình công suất Lửa (Gas %) và Lưu lượng Gió (Airflow %).
+  - Góc mở thực tế của van Servo (0° - 180°).
+  - Nhiệt độ và độ ẩm xưởng đo từ DHT22.
+  - Trạng thái 3 đèn LED màu (Xanh / Vàng / Đỏ) và nút bấm kích hoạt xả mẻ khẩn cấp.

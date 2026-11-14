@@ -1,52 +1,125 @@
 {
   "version": 1,
-  "author": "12_DH-THMT_Nhom14 (TMDT_Ban_Coffee IoT Roaster Simulator)",
+  "author": "12_DH-THMT_Nhom14 (TMDT_Ban_Coffee Industrial Roaster Simulator Full Rig)",
   "editor": "wokwi",
   "parts": [
     {
       "type": "board-esp32-devkit-c-v4",
       "id": "esp",
-      "top": 30,
-      "left": 40,
+      "top": 120,
+      "left": 140,
       "attrs": {}
     },
     {
-      "type": "wokwi-lcd1602",
+      "type": "wokwi-lcd2004",
       "id": "lcd",
-      "top": -140,
-      "left": 30,
+      "top": -150,
+      "left": 70,
       "attrs": { "pins": "i2c" }
     },
     {
+      "type": "wokwi-dht22",
+      "id": "dht",
+      "top": 5,
+      "left": -70,
+      "attrs": {}
+    },
+    {
       "type": "wokwi-potentiometer",
-      "id": "pot",
-      "top": 50,
-      "left": -140,
-      "attrs": { "label": "Can thiep (+0..+35C)" }
+      "id": "pot_gas",
+      "top": 130,
+      "left": -120,
+      "attrs": { "label": "Gas/Lua (0-100%)" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot_air",
+      "top": 240,
+      "left": -120,
+      "attrs": { "label": "Air/Gio (0-100%)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_dump",
+      "top": 360,
+      "left": -80,
+      "attrs": { "color": "red", "label": "Xa Nhiet / Dump" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo",
+      "top": 90,
+      "left": 360,
+      "attrs": {}
     },
     {
       "type": "wokwi-led",
-      "id": "led",
-      "top": 50,
-      "left": 200,
-      "attrs": { "color": "red", "label": "Qua nhiet" }
+      "id": "led_green",
+      "top": 210,
+      "left": 360,
+      "attrs": { "color": "green", "label": "Normal/Roast" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_yellow",
+      "top": 270,
+      "left": 360,
+      "attrs": { "color": "yellow", "label": "Canh bao >195C" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_red",
+      "top": 330,
+      "left": 360,
+      "attrs": { "color": "red", "label": "Qua nhiet >205C" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": 395,
+      "left": 360,
+      "attrs": { "volume": "0.4" }
     }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
 
-    [ "pot:1", "esp:GND.1", "black", [ "v0" ] ],
-    [ "pot:2", "esp:34", "purple", [ "v0" ] ],
-    [ "pot:3", "esp:3V3", "red", [ "v0" ] ],
-
     [ "lcd:GND", "esp:GND.2", "black", [ "v0" ] ],
     [ "lcd:VCC", "esp:5V", "red", [ "v0" ] ],
     [ "lcd:SDA", "esp:21", "blue", [ "v0" ] ],
     [ "lcd:SCL", "esp:22", "yellow", [ "v0" ] ],
 
-    [ "led:A", "esp:2", "red", [ "v0" ] ],
-    [ "led:C", "esp:GND.1", "black", [ "v0" ] ]
+    [ "dht:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "dht:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "dht:SDA", "esp:4", "green", [ "v0" ] ],
+
+    [ "pot_gas:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_gas:2", "esp:34", "orange", [ "v0" ] ],
+    [ "pot_gas:3", "esp:3V3", "red", [ "v0" ] ],
+
+    [ "pot_air:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_air:2", "esp:35", "cyan", [ "v0" ] ],
+    [ "pot_air:3", "esp:3V3", "red", [ "v0" ] ],
+
+    [ "btn_dump:1.l", "esp:GND.1", "black", [ "v0" ] ],
+    [ "btn_dump:2.l", "esp:19", "purple", [ "v0" ] ],
+
+    [ "servo:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "servo:V+", "esp:5V", "red", [ "v0" ] ],
+    [ "servo:PWM", "esp:18", "orange", [ "v0" ] ],
+
+    [ "led_green:A", "esp:12", "green", [ "v0" ] ],
+    [ "led_green:C", "esp:GND.1", "black", [ "v0" ] ],
+
+    [ "led_yellow:A", "esp:14", "yellow", [ "v0" ] ],
+    [ "led_yellow:C", "esp:GND.1", "black", [ "v0" ] ],
+
+    [ "led_red:A", "esp:27", "red", [ "v0" ] ],
+    [ "led_red:C", "esp:GND.1", "black", [ "v0" ] ],
+
+    [ "buzzer:1", "esp:GND.2", "black", [ "v0" ] ],
+    [ "buzzer:2", "esp:26", "purple", [ "v0" ] ]
   ],
   "dependencies": {}
 }
