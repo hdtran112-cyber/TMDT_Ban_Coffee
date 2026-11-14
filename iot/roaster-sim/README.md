@@ -1,10 +1,7 @@
 # Thiết Bị Mô Phỏng Lò Rang Cà Phê IoT ESP32 (PlatformIO & Wokwi)
 
 Dự án: **TMDT_Ban_Coffee** - Module C: Giám Sát & Truy Xuất Mẻ Rang Bằng IoT  
-**Nhóm:** IOT - NHÓM 9  
-**Sinh viên:** Lương Thế Cường  
-**MSSV:** 1250080025  
-**Lớp:** 12_ĐH_THMT  
+**Nhóm:** 12_ĐH-THMT_Nhom14  
 
 ---
 
@@ -41,7 +38,7 @@ iot/roaster-sim/
 
 | Linh kiện | Chân kết nối ESP32 | Mô tả |
 |---|---|---|
-| **Màn hình LCD 20x4 (I2C)** | SDA: GPIO 21, SCL: GPIO 22, VCC: 5V, GND | Hiển thị SV: Luong The Cuong, MSSV, Mã mẻ, Nhiệt độ |
+| **Màn hình LCD 20x4 (I2C)** | SDA: GPIO 21, SCL: GPIO 22, VCC: 5V, GND | Hiển thị: 12_DH-THMT_Nhom14, Mã mẻ, Nhiệt độ |
 | **Biến trở 1 (Temp Knob)** | SIG: GPIO 34 (ADC1), VCC: 3.3V, GND | Giả lập điều chỉnh nhiệt độ lồng rang (100°C - 240°C) |
 | **Biến trở 2 (Fan Knob)** | SIG: GPIO 35 (ADC1), VCC: 3.3V, GND | Điều chỉnh tốc độ quạt hoặc luồng gió |
 | **Cảm biến DHT22** | SDA: GPIO 15, VCC: 3.3V, GND | Đo nhiệt độ và độ ẩm môi trường phòng rang |
@@ -53,70 +50,30 @@ iot/roaster-sim/
 
 ---
 
-## 4. Hướng dẫn chạy mô phỏng trên VS Code (Giống như hình mẫu)
+## 4. Hướng dẫn chạy mô phỏng trên VS Code
 
-### Bước 1: Mở thư mục dự án
-Mở VS Code tại thư mục `iot/roaster-sim` (hoặc mở toàn bộ repo `TMDT_Ban_Coffee`).
-
-### Bước 2: Cài đặt Extension
-Đảm bảo đã cài đặt 2 extension sau trong VS Code:
-1. **PlatformIO IDE** (bởi PlatformIO)
-2. **Wokwi Simulator** (bởi Wokwi)
-
-### Bước 3: Chạy mô phỏng Wokwi
-1. Nhấp mở file `diagram.json`.
-2. Bấm phím tắt `F1` (hoặc `Ctrl + Shift + P`), gõ và chọn:  
-   `Wokwi: Start Simulator` (hoặc bấm nút Play màu xanh trên thanh công cụ Wokwi).
-3. Màn hình Wokwi Simulator sẽ xuất hiện:
-   - LCD 20x4 sáng xanh và hiển thị thông tin:
-     ```
-     SV: Luong The Cuong
-     MSSV: 1250080025 | AUT
-     Me: B20261027-01
-     T: 180.0°C [R]
-     ```
-   - Terminal của VS Code bên dưới sẽ in log dữ liệu liên tục:
-     ```json
-     Data: {"batch":"B20261027-01", "elapsed_s":1, "temp":180.0, "alert":0, "http":201}
-     ```
-
-### Bước 4: Mở giao diện Web Localhost
-1. Mở trình duyệt web (Chrome, Edge) hoặc dùng Simple Browser trong VS Code (`Ctrl + Shift + P` -> `Simple Browser: Show`).
-2. Truy cập địa chỉ:
+### Cách 1: Chạy mô phỏng Wokwi trong VS Code
+1. Cài extension **Wokwi Simulator** trong VS Code.
+2. Nhấp mở file `diagram.json`.
+3. Bấm nút Play ▶️ màu xanh lá để bắt đầu mô phỏng.
+4. Màn hình LCD 20x4 sẽ hiển thị:
    ```
-   http://localhost:8180/
+   12_DH-THMT_Nhom14
+   HE THONG LO RANG
+   Me: B20261027-01
+   T: 180.0°C [R]
    ```
-3. Bạn sẽ thấy giao diện **"☕ Hệ Thống Giám Sát Lò Rang Cà Phê IoT"**:
-   - Theo dõi nhiệt độ, thời gian, trạng thái cảnh báo quá nhiệt theo thời gian thực (tự động cập nhật mỗi 1s).
-   - Nút bật/tắt trực tiếp 4 Relay (Heater, Cooling Fan, Drum Motor, Exhaust Fan).
-   - Đổi chế độ **Tự động (AUTO)** theo đường cong chuẩn hoặc **Thủ công (MANUAL)** bằng núm vặn biến trở.
-   - Thay đổi mã mẻ rang đang giám sát.
+5. Mở trình duyệt Web tại: `http://localhost:8180/` để xem Web Dashboard.
 
----
+### Cách 2: Chạy trực tiếp trên trình duyệt Web Wokwi (Không cần cài Extension)
+1. Truy cập [https://wokwi.com/projects/new/esp32](https://wokwi.com/projects/new/esp32).
+2. Dán nội dung của file `diagram.json` vào tab `diagram.json` trên Wokwi.
+3. Dán mã nguồn từ `src/main.cpp` vào tab code.
+4. Bấm **Play** để xem mô phỏng hoạt động trực tiếp trên web!
 
-## 5. Kết nối với Backend Django của TMDT_Ban_Coffee
-
-1. Khởi động Django Backend trong terminal:
-   ```bash
-   cd backend
-   # Kích hoạt môi trường và đặt khóa bí mật
-   set DEVICE_KEY=my-test-secret-key-123
-   python manage.py runserver
-   ```
-2. Do trong `settings.py` đã cấu hình `ALLOWED_HOSTS = [..., "host.wokwi.internal"]`, ESP32 trong Wokwi sẽ tự động kết nối và gửi dữ liệu thành công với mã `201 Created`.
-3. Kiểm tra kết quả truy xuất trên Frontend React:
-   ```
-   http://localhost:5173/trace/B20261027-01
-   ```
-   Biểu đồ đường cong nhiệt độ Chart.js sẽ tự động vẽ các điểm đo do ESP32 vừa gửi lên!
-
----
-
-## 6. Chạy Script Phân Tích (Analysis Server)
-
-Nếu muốn phân tích sâu đường cong nhiệt độ và tốc độ gia nhiệt RoR (°C/phút) hoặc chạy dashboard phụ:
+### Cách 3: Chạy nhanh Web Dashboard bằng Analysis Server
 ```bash
 cd iot/roaster-sim
 python analysis_server.py
 ```
-Mở trình duyệt tại `http://localhost:8180/` để xem bảng dữ liệu và đánh giá chất lượng mẻ rang.
+Mở trình duyệt tại `http://localhost:8180/` để xem bảng giám sát và điều khiển.

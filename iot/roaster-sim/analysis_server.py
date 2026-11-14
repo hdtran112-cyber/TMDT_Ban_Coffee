@@ -1,7 +1,7 @@
 """
 Hệ thống Giám sát & Phân tích Mẻ rang Cà phê IoT (Analysis Server)
 Dự án: TMDT_Ban_Coffee - Module C: Giám sát mẻ rang IoT
-Nhóm: IOT - NHÓM 9
+Nhóm: 12_ĐH-THMT_Nhom14
 
 Công dụng:
 - Cung cấp Web Server phân tích tại http://localhost:8180/ (hoặc làm server dự phòng)
@@ -25,7 +25,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>☕ Phân Tích Mẻ Rang Cà Phê IoT | Localhost:{port}</title>
+  <title>☕ Phân Tích Mẻ Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14 | Localhost:{port}</title>
   <style>
     :root {{
       --primary: #6F4E37;
@@ -96,8 +96,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header-card">
-      <h1>☕ Trung Tâm Phân Tích Mẻ Rang Cà Phê IoT - IOT - NHÓM 9</h1>
-      <p><strong>Nhóm:</strong> IOT - NHÓM 9 &nbsp;|&nbsp; <strong>Sinh viên:</strong> Lương Thế Cường &nbsp;|&nbsp; <strong>MSSV:</strong> 1250080025 &nbsp;|&nbsp; <strong>Lớp:</strong> 12_ĐH_THMT</p>
+      <h1>☕ Trung Tâm Phân Tích Mẻ Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14</h1>
+      <p><strong>Nhóm thực hiện:</strong> 12_ĐH-THMT_Nhom14 &nbsp;|&nbsp; <strong>Dự án:</strong> TMDT_Ban_Coffee (Module C)</p>
     </div>
 
     <div class="card" style="margin-bottom: 20px;">
@@ -270,14 +270,14 @@ class RoasterAnalysisHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analysis Server cho mô phỏng lò rang cà phê IoT")
+    parser = argparse.ArgumentParser(description="Analysis Server cho mô phỏng lò rang cà phê IoT - 12_ĐH-THMT_Nhom14")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Cổng HTTP (mặc định {DEFAULT_PORT})")
     args = parser.parse_args()
 
     server_address = ("", args.port)
     httpd = HTTPServer(server_address, RoasterAnalysisHandler)
     print("=" * 65)
-    print(f"☕ CHẠY ANALYSIS SERVER TẠI: http://localhost:{args.port}/")
+    print(f"☕ CHẠY ANALYSIS SERVER (12_ĐH-THMT_Nhom14) TẠI: http://localhost:{args.port}/")
     print(f"Kết nối dữ liệu tới Django Backend: {DJANGO_API_BASE}")
     print("Nhấn Ctrl + C để dừng server")
     print("=" * 65)

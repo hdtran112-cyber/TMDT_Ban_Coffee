@@ -10,12 +10,9 @@
 #include "secrets.h"
 
 // ==============================================================================
-// 1. CẤU HÌNH THÔNG TIN SINH VIÊN & HỆ THỐNG
+// 1. CẤU HÌNH THÔNG TIN HỆ THỐNG
 // ==============================================================================
-const char* GROUP_NAME   = "IOT - NHOM 9";
-const char* STUDENT_NAME = "Luong The Cuong";
-const char* STUDENT_MSSV = "1250080025";
-const char* STUDENT_CLASS = "12_DH_THMT";
+const char* GROUP_NAME  = "12_DH-THMT_Nhom14";
 
 // Cấu hình mạng WiFi (Wokwi ảo)
 const char* ssid = WIFI_SSID;
@@ -152,12 +149,10 @@ void updateSensors() {
 // Cập nhật hiển thị lên màn hình LCD 20x4
 void updateLCD() {
   lcd.setCursor(0, 0);
-  lcd.print("IOT - NHOM 9        ");
+  lcd.print("12_DH-THMT_Nhom14   ");
 
   lcd.setCursor(0, 1);
-  lcd.print("SV: ");
-  lcd.print(STUDENT_NAME);
-  for (int i = 4 + strlen(STUDENT_NAME); i < 20; i++) lcd.print(" ");
+  lcd.print("HE THONG LO RANG    ");
 
   lcd.setCursor(0, 2);
   lcd.print("Me: ");
@@ -233,7 +228,7 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>☕ Giám Sát Lò Rang Cà Phê IoT - IOT - NHÓM 9 | Localhost</title>
+  <title>☕ Giám Sát Lò Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14 | Localhost</title>
   <style>
     :root {
       --primary: #6F4E37;
@@ -362,11 +357,11 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <div class="container">
-    <!-- Header Thông tin sinh viên & Nhóm -->
+    <!-- Header Thông tin nhóm -->
     <div class="header-card">
-      <h1>☕ Hệ Thống Giám Sát Lò Rang Cà Phê IoT - IOT - NHÓM 9</h1>
-      <p><strong>Nhóm:</strong> IOT - NHÓM 9 &nbsp;|&nbsp; <strong>Sinh viên:</strong> Lương Thế Cường &nbsp;|&nbsp; <strong>MSSV:</strong> 1250080025 &nbsp;|&nbsp; <strong>Lớp:</strong> 12_ĐH_THMT</p>
-      <div class="badge-class">Đồ án TMĐT - TMDT_Ban_Coffee (Module C)</div>
+      <h1>☕ Hệ Thống Giám Sát Lò Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14</h1>
+      <p><strong>Nhóm thực hiện:</strong> 12_ĐH-THMT_Nhom14 &nbsp;|&nbsp; <strong>Dự án:</strong> TMDT_Ban_Coffee</p>
+      <div class="badge-class">Module C: Giám sát & Truy xuất mẻ rang IoT</div>
     </div>
 
     <div class="grid">
@@ -589,7 +584,7 @@ void handleRoot() {
 
 void handleStatus() {
   StaticJsonDocument<512> doc;
-  doc["student"] = String(STUDENT_NAME) + " - " + String(STUDENT_MSSV);
+  doc["group"] = String(GROUP_NAME);
   doc["batch_code"] = currentBatchCode;
   doc["temperature_c"] = currentTemp;
   doc["elapsed_s"] = elapsedSeconds;
@@ -649,8 +644,7 @@ void setup() {
   delay(500);
 
   Serial.println("\n========================================================");
-  Serial.println("  IOT - NHOM 9 | TMDT_BAN_COFFEE - LO RANG IOT ESP32");
-  Serial.println("  SV: Luong The Cuong | MSSV: 1250080025 | 12_DH_THMT");
+  Serial.println("  12_DH-THMT_Nhom14 | TMDT_BAN_COFFEE - LO RANG IOT ESP32");
   Serial.println("========================================================");
 
   // Cấu hình chân GPIO
@@ -666,12 +660,10 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
-  lcd.print("IOT - NHOM 9");
+  lcd.print("12_DH-THMT_Nhom14   ");
   lcd.setCursor(0, 1);
-  lcd.print("COFFEE ROASTER IOT");
+  lcd.print("COFFEE ROASTER IOT  ");
   lcd.setCursor(0, 2);
-  lcd.print("SV: Luong The Cuong");
-  lcd.setCursor(0, 3);
   lcd.print("Dang ket noi WiFi...");
 
   // Khởi tạo DHT
