@@ -67,6 +67,9 @@ float envHumidity        = 60.0;
 bool isAlert             = false;
 bool isWarning           = false;
 bool emergencyDumpActive = false;
+bool manualOverride      = false;
+float overrideGas        = 50.0;
+float overrideAir        = 30.0;
 bool lastButtonState     = HIGH;
 String roastingPhase     = "DRYING";
 
@@ -137,9 +140,21 @@ void updatePhysicsAndControls() {
   float measuredGas = ((float)rawGas / 4095.0) * 100.0;
   float measuredAir = ((float)rawAir / 4095.0) * 100.0;
 
+  // Nếu người dùng xoay biến trở thì tự động huỷ override để ưu tiên thao tác chuột
+  static int prevRawGas = -1;
+  static int prevRawAir = -1;
+  if (prevRawGas >= 0 && (abs(rawGas - prevRawGas) > 80 || abs(rawAir - prevRawAir) > 80)) {
+    manualOverride = false;
+  }
+  prevRawGas = rawGas;
+  prevRawAir = rawAir;
+
   if (emergencyDumpActive) {
     gasPercent = 0.0;
     airPercent = 100.0;
+  } else if (manualOverride) {
+    gasPercent = overrideGas;
+    airPercent = overrideAir;
   } else {
     gasPercent = measuredGas;
     airPercent = measuredAir;
@@ -428,7 +443,12 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           <span>Góc mở van Servo (GPIO 18):</span>
           <strong id="servoVal" style="color: var(--accent);">0°</strong>
         </div>
-        <button class="btn-action btn-dump" onclick="toggleDump()">🚨 Nhấn Xả Nhiệt Khẩn Cấp (Dump Button)</button>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+          <button class="btn-action" style="background:#dc2626; color:#fff;" onclick="forceOverheat()">🔥 Tạo Quá Nhiệt (&gt;205°C)</button>
+          <button class="btn-action" style="background:#f59e0b; color:#fff;" onclick="forceWarning()">⚡ Kích First Crack</button>
+          <button class="btn-action" style="background:#3b82f6; color:#fff;" onclick="toggleDump()">💨 Xả Gió Khẩn Cấp</button>
+          <button class="btn-action" style="background:#10b981; color:#fff;" onclick="forceAuto()">🎛️ Dùng Biến Trở</button>
+        </div>
         <button class="btn-action btn-reset" onclick="resetTimer()">⏱️ Đặt lại thời gian mẻ (0s)</button>
       </div>
 
@@ -522,6 +542,15 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
         .catch(function(e) { console.error(e); });
     }
 
+    function forceOverheat() {
+      fetch('/api/force_overheat', { method: 'POST' }).then(updateData);
+    }
+    function forceWarning() {
+      fetch('/api/force_warning', { method: 'POST' }).then(updateData);
+    }
+    function forceAuto() {
+      fetch('/api/force_auto', { method: 'POST' }).then(updateData);
+    }
     function toggleDump() {
       fetch('/api/dump', { method: 'POST' }).then(updateData);
     }
@@ -564,6 +593,28 @@ void handleStatus() {
 void handleDumpToggle() {
   emergencyDumpActive = !emergencyDumpActive;
   server.send(200, "text/plain", emergencyDumpActive ? "DUMP_ON" : "DUMP_OFF");
+}
+
+void handleForceOverheat() {
+  manualOverride = true;
+  overrideGas = 100.0;
+  overrideAir = 0.0;
+  emergencyDumpActive = false;
+  server.send(200, "text/plain", "OVERHEAT");
+}
+
+void handleForceWarning() {
+  manualOverride = true;
+  overrideGas = 80.0;
+  overrideAir = 15.0;
+  emergencyDumpActive = false;
+  server.send(200, "text/plain", "WARNING");
+}
+
+void handleForceAuto() {
+  manualOverride = false;
+  emergencyDumpActive = false;
+  server.send(200, "text/plain", "AUTO");
 }
 
 void handleReset() {
@@ -638,6 +689,9 @@ void setup() {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/dump", HTTP_POST, handleDumpToggle);
+  server.on("/api/force_overheat", HTTP_POST, handleForceOverheat);
+  server.on("/api/force_warning", HTTP_POST, handleForceWarning);
+  server.on("/api/force_auto", HTTP_POST, handleForceAuto);
   server.on("/api/reset", HTTP_POST, handleReset);
   server.begin();
   Serial.println("Web Server hoat dong tren cong 80 (Map -> localhost:8180)");
