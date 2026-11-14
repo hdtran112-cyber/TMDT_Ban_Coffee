@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "author": "12_DH-THMT_Nhom14 (TMDT_Ban_Coffee IoT Roaster Simulator)",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 30,
+      "left": 40,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd",
+      "top": -140,
+      "left": 30,
+      "attrs": { "pins": "i2c" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot",
+      "top": 50,
+      "left": -140,
+      "attrs": { "label": "Can thiep (+0..+35C)" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led",
+      "top": 50,
+      "left": 200,
+      "attrs": { "color": "red", "label": "Qua nhiet" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "pot:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot:2", "esp:34", "purple", [ "v0" ] ],
+    [ "pot:3", "esp:3V3", "red", [ "v0" ] ],
+
+    [ "lcd:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "lcd:VCC", "esp:5V", "red", [ "v0" ] ],
+    [ "lcd:SDA", "esp:21", "blue", [ "v0" ] ],
+    [ "lcd:SCL", "esp:22", "yellow", [ "v0" ] ],
+
+    [ "led:A", "esp:2", "red", [ "v0" ] ],
+    [ "led:C", "esp:GND.1", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
