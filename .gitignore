@@ -7,3 +7,12 @@ node_modules/
 dist/
 .DS_Store
 .vscode/
+
+# PlatformIO & IoT Simulation
+.pio/
+iot/**/secrets.h
+!iot/**/secrets.h.example
+*.bin
+*.elf
+*.map
+
