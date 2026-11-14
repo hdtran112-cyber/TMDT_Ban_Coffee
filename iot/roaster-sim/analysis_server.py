@@ -1,7 +1,7 @@
 """
 Hệ thống Giám sát & Phân tích Mẻ rang Cà phê IoT (Analysis Server)
 Dự án: TMDT_Ban_Coffee - Module C: Giám sát mẻ rang IoT
-Sinh viên: Lương Thế Cường - MSSV: 1250080025 - Lớp: 12_ĐH_THMT
+Nhóm: IOT - NHÓM 9
 
 Công dụng:
 - Cung cấp Web Server phân tích tại http://localhost:8180/ (hoặc làm server dự phòng)
@@ -96,8 +96,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="container">
     <div class="header-card">
-      <h1>☕ Trung Tâm Phân Tích Mẻ Rang Cà Phê IoT</h1>
-      <p><strong>Sinh viên:</strong> Lương Thế Cường &nbsp;|&nbsp; <strong>MSSV:</strong> 1250080025 &nbsp;|&nbsp; <strong>Lớp:</strong> 12_ĐH_THMT</p>
+      <h1>☕ Trung Tâm Phân Tích Mẻ Rang Cà Phê IoT - IOT - NHÓM 9</h1>
+      <p><strong>Nhóm:</strong> IOT - NHÓM 9 &nbsp;|&nbsp; <strong>Sinh viên:</strong> Lương Thế Cường &nbsp;|&nbsp; <strong>MSSV:</strong> 1250080025 &nbsp;|&nbsp; <strong>Lớp:</strong> 12_ĐH_THMT</p>
     </div>
 
     <div class="card" style="margin-bottom: 20px;">

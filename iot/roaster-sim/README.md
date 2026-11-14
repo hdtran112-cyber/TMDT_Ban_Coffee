@@ -1,6 +1,7 @@
 # Thiết Bị Mô Phỏng Lò Rang Cà Phê IoT ESP32 (PlatformIO & Wokwi)
 
 Dự án: **TMDT_Ban_Coffee** - Module C: Giám Sát & Truy Xuất Mẻ Rang Bằng IoT  
+**Nhóm:** IOT - NHÓM 9  
 **Sinh viên:** Lương Thế Cường  
 **MSSV:** 1250080025  
 **Lớp:** 12_ĐH_THMT  

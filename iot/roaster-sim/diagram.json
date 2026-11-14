@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "author": "Luong The Cuong - 1250080025 (TMDT_Ban_Coffee IoT Roaster Simulator)",
+  "author": "IOT - NHOM 9 (Luong The Cuong - 1250080025)",
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 60, "left": 0, "attrs": {} },
