@@ -94,13 +94,13 @@
     [ "dht:GND", "esp:GND.1", "black", [ "v0" ] ],
     [ "dht:SDA", "esp:4", "green", [ "v0" ] ],
 
-    [ "pot_gas:1", "esp:GND.1", "black", [ "v0" ] ],
-    [ "pot_gas:2", "esp:34", "orange", [ "v0" ] ],
-    [ "pot_gas:3", "esp:3V3", "red", [ "v0" ] ],
+    [ "pot_gas:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_gas:SIG", "esp:34", "orange", [ "v0" ] ],
+    [ "pot_gas:VCC", "esp:3V3", "red", [ "v0" ] ],
 
-    [ "pot_air:1", "esp:GND.1", "black", [ "v0" ] ],
-    [ "pot_air:2", "esp:35", "cyan", [ "v0" ] ],
-    [ "pot_air:3", "esp:3V3", "red", [ "v0" ] ],
+    [ "pot_air:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot_air:SIG", "esp:35", "cyan", [ "v0" ] ],
+    [ "pot_air:VCC", "esp:3V3", "red", [ "v0" ] ],
 
     [ "btn_dump:1.l", "esp:GND.1", "black", [ "v0" ] ],
     [ "btn_dump:2.l", "esp:19", "purple", [ "v0" ] ],
