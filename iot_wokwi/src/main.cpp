@@ -49,25 +49,27 @@ Servo exhaustServo;
 WebServer server(80);
 
 // ==============================================================================
-// 3. BIẾN TRẠNG THÁI & MÔ HÌNH VẬT LÝ LÒ RANG CÔNG NGHIỆP
+// 3. ĐƯỜNG CONG TỰ ĐỘNG CHUẨN (AUTO PROFILE) & BIẾN TRẠNG THÁI
 // ==============================================================================
 int elapsedSeconds       = 0;
-float currentTemp        = 110.0;
-float baseTemp           = 110.0;
+float currentTemp        = 130.0;
+float baseTemp           = 130.0;
 float gasEffect          = 0.0;
 float airCooling         = 0.0;
 
-float gasPercent         = 50.0;
-float airPercent         = 30.0;
-int servoAngle           = 54;
+float gasPercent         = 65.0;
+float airPercent         = 25.0;
+int servoAngle           = 45;
 
 float envTemp            = 28.0;
 float envHumidity        = 60.0;
 
-bool isAlert             = false;
-bool isWarning           = false;
-bool emergencyDumpActive = false;
-bool manualOverride      = false;
+bool isAutoMode          = true;  // MẶC ĐỊNH KHỞI ĐỘNG CHẾ ĐỘ TỰ ĐỘNG CHẠY (AUTO)
+bool manualInterference  = false; // Phát hiện người dùng tự ý chỉnh nhiệt độ lên cao
+bool isAlert             = false; // Quá nhiệt (> 205°C)
+bool isWarning           = false; // Giai đoạn cảnh báo (195°C - 205°C)
+bool emergencyDumpActive = false; // Xả nhiệt khẩn cấp
+bool manualOverride      = false; // Can thiệp từ giao diện Web
 float overrideGas        = 50.0;
 float overrideAir        = 30.0;
 bool lastButtonState     = HIGH;
@@ -80,42 +82,71 @@ unsigned long lastTickTime    = 0;
 unsigned long lastApiSendTime = 0;
 const unsigned long API_INTERVAL = 3000; // Gửi dữ liệu mỗi 3 giây
 
-// Đường cong nhiệt độ nền chuẩn (Base Roasting Curve 110°C -> 195°C)
-struct TempPoint {
+// Đường cong rang tự động chuẩn công nghiệp (S-Curve Profile 112°C -> 202.5°C)
+// Đảm bảo ở chế độ TỰ ĐỘNG luôn luôn an toàn (< 205°C)
+struct AutoPoint {
   int second;
   float temp;
+  float gas;
+  float air;
 };
 
-const TempPoint standardBaseCurve[] = {
-  {0,   110.0},
-  {45,  122.0},
-  {90,  136.0},
-  {150, 154.0},
-  {210, 170.0},
-  {270, 183.0},
-  {330, 191.0},
-  {360, 195.0}
+const AutoPoint autoProfile[] = {
+  {0,   130.0, 68.0, 20.0}, // Nạp hạt (Charge Temp)
+  {30,  112.0, 72.0, 22.0}, // Turning Point
+  {60,  128.0, 75.0, 25.0}, // Sấy hạt (Drying)
+  {120, 155.0, 68.0, 32.0}, // Vàng hóa (Yellowing)
+  {180, 172.0, 62.0, 40.0}, // Phản ứng Maillard
+  {240, 188.0, 52.0, 48.0}, // Tiếp cận First Crack
+  {300, 197.5, 45.0, 52.0}, // Nổ đợt 1 (First Crack - Đèn Vàng)
+  {360, 202.0, 38.0, 60.0}  // Phát triển (Development - Đạt tối đa 202°C < 205°C)
 };
-const int BASE_CURVE_SIZE = sizeof(standardBaseCurve) / sizeof(standardBaseCurve[0]);
+const int PROFILE_SIZE = sizeof(autoProfile) / sizeof(autoProfile[0]);
 
-float calculateBaseTemp(int sec) {
-  if (sec <= standardBaseCurve[0].second) return standardBaseCurve[0].temp;
-  int maxSec = standardBaseCurve[BASE_CURVE_SIZE - 1].second;
-  if (sec >= maxSec) return standardBaseCurve[BASE_CURVE_SIZE - 1].temp;
+float getAutoBaseTemp(int sec) {
+  if (sec <= autoProfile[0].second) return autoProfile[0].temp;
+  int maxSec = autoProfile[PROFILE_SIZE - 1].second;
+  if (sec >= maxSec) return autoProfile[PROFILE_SIZE - 1].temp;
 
-  for (int i = 0; i < BASE_CURVE_SIZE - 1; i++) {
-    if (sec >= standardBaseCurve[i].second && sec <= standardBaseCurve[i+1].second) {
-      float ratio = (float)(sec - standardBaseCurve[i].second) / (standardBaseCurve[i+1].second - standardBaseCurve[i].second);
-      return standardBaseCurve[i].temp + ratio * (standardBaseCurve[i+1].temp - standardBaseCurve[i].temp);
+  for (int i = 0; i < PROFILE_SIZE - 1; i++) {
+    if (sec >= autoProfile[i].second && sec <= autoProfile[i+1].second) {
+      float ratio = (float)(sec - autoProfile[i].second) / (autoProfile[i+1].second - autoProfile[i].second);
+      return autoProfile[i].temp + ratio * (autoProfile[i+1].temp - autoProfile[i].temp);
     }
   }
-  return 195.0;
+  return 202.0;
+}
+
+float getAutoGas(int sec) {
+  if (sec <= autoProfile[0].second) return autoProfile[0].gas;
+  int maxSec = autoProfile[PROFILE_SIZE - 1].second;
+  if (sec >= maxSec) return autoProfile[PROFILE_SIZE - 1].gas;
+  for (int i = 0; i < PROFILE_SIZE - 1; i++) {
+    if (sec >= autoProfile[i].second && sec <= autoProfile[i+1].second) {
+      float ratio = (float)(sec - autoProfile[i].second) / (autoProfile[i+1].second - autoProfile[i].second);
+      return autoProfile[i].gas + ratio * (autoProfile[i+1].gas - autoProfile[i].gas);
+    }
+  }
+  return 38.0;
+}
+
+float getAutoAir(int sec) {
+  if (sec <= autoProfile[0].second) return autoProfile[0].air;
+  int maxSec = autoProfile[PROFILE_SIZE - 1].second;
+  if (sec >= maxSec) return autoProfile[PROFILE_SIZE - 1].air;
+  for (int i = 0; i < PROFILE_SIZE - 1; i++) {
+    if (sec >= autoProfile[i].second && sec <= autoProfile[i+1].second) {
+      float ratio = (float)(sec - autoProfile[i].second) / (autoProfile[i+1].second - autoProfile[i].second);
+      return autoProfile[i].air + ratio * (autoProfile[i+1].air - autoProfile[i].air);
+    }
+  }
+  return 60.0;
 }
 
 // Xác định 4 pha rang theo đặc tả
 String determinePhase(float temp) {
-  if (temp < 140.0) return "DRYING";
-  if (temp < 175.0) return "YELLOWING";
+  if (temp < 138.0) return "DRYING";
+  if (temp < 172.0) return "YELLOWING";
   if (temp <= 196.0) return "FIRST CRACK";
   return "DEVELOPMENT";
 }
@@ -128,7 +159,10 @@ void updatePhysicsAndControls() {
   bool btnState = digitalRead(PIN_BTN_DUMP);
   if (btnState == LOW && lastButtonState == HIGH) {
     emergencyDumpActive = !emergencyDumpActive; // Đảo trạng thái khẩn cấp
-    Serial.println(emergencyDumpActive ? "[NUT NHAN] Kich hoat XA MIE KHAN CAP (Air 100%, Gas 0%)!" : "[NUT NHAN] Tat che do xa me khap cap.");
+    if (emergencyDumpActive) {
+      manualOverride = false;
+      manualInterference = false;
+    }
     delay(50); // Chống dội phím
   }
   lastButtonState = btnState;
@@ -136,32 +170,59 @@ void updatePhysicsAndControls() {
   // 2. Đọc chiết áp Lửa (Gas) và Gió (Airflow)
   int rawGas = analogRead(PIN_POT_GAS);
   int rawAir = analogRead(PIN_POT_AIR);
-
   float measuredGas = ((float)rawGas / 4095.0) * 100.0;
   float measuredAir = ((float)rawAir / 4095.0) * 100.0;
 
-  // Nếu người dùng xoay biến trở thì tự động huỷ override để ưu tiên thao tác chuột
-  static int prevRawGas = -1;
-  static int prevRawAir = -1;
-  if (prevRawGas >= 0 && (abs(rawGas - prevRawGas) > 80 || abs(rawAir - prevRawAir) > 80)) {
+  // Kiểm tra thao tác vặn biến trở Gas:
+  // Nếu người dùng xoay núm Gas lên cao (> 58%) -> Phát hiện TỰ Ý CHỈNH NHIỆT ĐỘ LÊN CAO!
+  static int prevGasRaw = -1;
+  if (prevGasRaw >= 0 && abs(rawGas - prevGasRaw) > 60) {
+    // Có sự thay đổi vị trí núm vặn thực tế -> huỷ override web để ưu tiên núm xoay
     manualOverride = false;
   }
-  prevRawGas = rawGas;
-  prevRawAir = rawAir;
+  prevGasRaw = rawGas;
 
-  if (emergencyDumpActive) {
-    gasPercent = 0.0;
-    airPercent = 100.0;
-  } else if (manualOverride) {
+  float autoGasVal = getAutoGas(elapsedSeconds);
+  float autoAirVal = getAutoAir(elapsedSeconds);
+
+  // Xử lý các chế độ can thiệp:
+  if (manualOverride) {
+    // Người dùng điều khiển qua Web Dashboard (Nút bấm hoặc Slider trên Web)
     gasPercent = overrideGas;
     airPercent = overrideAir;
-  } else {
+    manualInterference = (overrideGas >= 60.0);
+    isAutoMode = !manualInterference;
+  }
+  else if (measuredGas >= 58.0) {
+    // Người dùng vặn núm Gas trên mạch Wokwi vượt 58% -> Tự ý tăng nhiệt độ
+    manualInterference = true;
+    isAutoMode = false;
     gasPercent = measuredGas;
     airPercent = measuredAir;
   }
+  else if (manualInterference && measuredGas <= 45.0) {
+    // Người dùng vặn núm Gas về lại mức an toàn -> Khôi phục chế độ Tự Động
+    manualInterference = false;
+    isAutoMode = true;
+  }
 
-  // 3. Điều khiển Servo góc van gió
+  if (isAutoMode && !manualOverride && !manualInterference) {
+    // CHẾ ĐỘ TỰ ĐỘNG CHẠY HOÀN TOÀN THEO PROFILE MẺ RANG CHUẨN
+    gasPercent = autoGasVal;
+    airPercent = autoAirVal;
+  }
+
+  // Chế độ xả nhiệt khẩn cấp
+  if (emergencyDumpActive) {
+    gasPercent = 0.0;
+    airPercent = 100.0;
+    manualInterference = false;
+  }
+
+  // 3. Điều khiển Servo góc van gió (0 - 180 độ)
   servoAngle = map((int)airPercent, 0, 100, 0, 180);
+  if (servoAngle < 0) servoAngle = 0;
+  if (servoAngle > 180) servoAngle = 180;
   exhaustServo.write(servoAngle);
 
   // 4. Đọc cảm biến DHT22
@@ -172,15 +233,35 @@ void updatePhysicsAndControls() {
     envTemp = t;
   }
 
-  // 5. Tính toán cân bằng nhiệt độ hạt (Bean Temp)
-  // 5. Cân bằng nhiệt hạt:
-  // Gas: đẩy nhiệt độ tăng mạnh lên tới +115°C (cho phép vặn núm Gas vượt 205°C gây quá nhiệt ngay lập tức)
-  // Air: làm mát lồng rang tối đa -25°C
-  baseTemp = calculateBaseTemp(elapsedSeconds);
-  gasEffect = (gasPercent / 100.0) * 115.0;
-  airCooling = (airPercent / 100.0) * 25.0;
+  // 5. Tính toán Nhiệt độ hạt (Bean Temp):
+  // - Khi TỰ ĐỘNG: nhiệt độ bám sát đường cong autoBaseTemp chuẩn (tối đa 202°C < 205°C, LUÔN AN TOÀN)
+  // - Khi TỰ Ý TĂNG NHIỆT ĐỘ: nhiệt độ BẮT BUỘC vượt 205°C (207.5°C - 225°C) -> LẬP TỨC BÁO LỖI QUÁ NHIỆT!
+  baseTemp = getAutoBaseTemp(elapsedSeconds);
 
-  currentTemp = baseTemp + gasEffect - airCooling;
+  if (emergencyDumpActive) {
+    currentTemp = currentTemp - 2.5; // Hạ nhiệt nhanh chóng khi xả mẻ
+    if (currentTemp < 95.0) currentTemp = 95.0;
+    gasEffect = 0.0;
+    airCooling = 25.0;
+  }
+  else if (manualInterference || gasPercent >= 60.0) {
+    // TỰ Ý CHỈNH NHIỆT LÊN CAO:
+    // Đảm bảo vượt ngưỡng 205.0°C để kích hoạt báo động quá nhiệt (Alert)
+    float extra = (gasPercent - 60.0);
+    if (extra < 0) extra = 0;
+    currentTemp = 207.5 + (extra / 40.0) * 18.0; // Khoảng từ 207.5°C đến 225.5°C
+    gasEffect = currentTemp - baseTemp;
+    airCooling = (airPercent / 100.0) * 15.0;
+    currentTemp -= airCooling * 0.15; // Gió làm mát nhẹ nhưng vẫn giữ quá nhiệt
+  }
+  else {
+    // CHẾ ĐỘ TỰ ĐỘNG CHUẨN
+    gasEffect = 0.0;
+    airCooling = 0.0;
+    currentTemp = baseTemp + ((float)(random(-2, 3)) * 0.1); // Dao động nhẹ ±0.2°C
+    if (currentTemp > 202.5) currentTemp = 202.5; // Giới hạn an toàn tuyệt đối
+  }
+
   if (currentTemp < 90.0) currentTemp = 90.0;
   if (currentTemp > 240.0) currentTemp = 240.0;
 
@@ -188,15 +269,15 @@ void updatePhysicsAndControls() {
 
   // 6. Xử lý trạng thái cảnh báo & Điều khiển LED / Buzzer
   if (currentTemp > ALERT_MAX_TEMP) {
-    // Quá nhiệt nguy hiểm (> 205°C) -> LED Đỏ sáng + Buzzer kêu
+    // LỖI QUÁ NHIỆT NGUY HIỂM (> 205°C) -> LED Đỏ sáng + Còi Buzzer hú báo động
     isAlert = true;
     isWarning = false;
     digitalWrite(PIN_LED_GREEN, LOW);
     digitalWrite(PIN_LED_YELLOW, LOW);
     digitalWrite(PIN_LED_RED, HIGH);
-    tone(PIN_BUZZER, 1200, 250); // Còi kêu cảnh báo
+    tone(PIN_BUZZER, 1200, 250); // Còi kêu tít tít báo động sự cố
   } else if (currentTemp > WARN_TEMP) {
-    // Cảnh báo giai đoạn nhạy cảm (195°C - 205°C) -> LED Vàng sáng
+    // Cảnh báo giai đoạn First Crack (195°C - 205°C) -> LED Vàng sáng
     isAlert = false;
     isWarning = true;
     digitalWrite(PIN_LED_GREEN, LOW);
@@ -204,7 +285,7 @@ void updatePhysicsAndControls() {
     digitalWrite(PIN_LED_RED, LOW);
     noTone(PIN_BUZZER);
   } else {
-    // Bình thường (<= 195°C) -> LED Xanh sáng
+    // Trạng thái bình thường an toàn (<= 195°C) -> LED Xanh sáng
     isAlert = false;
     isWarning = false;
     digitalWrite(PIN_LED_GREEN, HIGH);
@@ -218,13 +299,18 @@ void updatePhysicsAndControls() {
 // 5. HIỂN THỊ MÀN HÌNH LCD 20x4 CHUẨN ĐẶC TẢ
 // ==============================================================================
 void updateLCD() {
-  // Dòng 0: B:B20261027-02 [OK] hoặc [ALRT]
+  // Dòng 0: Mã mẻ & Trạng thái: [AUTO], [MANU], [ALRT] hoặc [DUMP]
   lcd.setCursor(0, 0);
   char line0[21];
-  snprintf(line0, sizeof(line0), "B:%-10s %s", currentBatchCode.c_str(), isAlert ? "[ALRT]" : (emergencyDumpActive ? "[DUMP]" : "[OK] "));
+  const char* stTag = "[AUTO]";
+  if (isAlert) stTag = "[ALRT]";
+  else if (emergencyDumpActive) stTag = "[DUMP]";
+  else if (manualInterference)  stTag = "[MANU]";
+
+  snprintf(line0, sizeof(line0), "B:%-10s %s", currentBatchCode.c_str(), stTag);
   lcd.print(line0);
 
-  // Dòng 1: BT:198.5C | Env:31C
+  // Dòng 1: BT:198.5C | Env:28C
   lcd.setCursor(0, 1);
   char line1[21];
   snprintf(line1, sizeof(line1), "BT:%5.1fC|Env:%2.0fC %2.0f%%", currentTemp, envTemp, envHumidity);
@@ -236,7 +322,7 @@ void updateLCD() {
   snprintf(line2, sizeof(line2), "Gas:%3.0f%% | Air:%3.0f%%", gasPercent, airPercent);
   lcd.print(line2);
 
-  // Dòng 3: Phase: FIRST CRACK
+  // Dòng 3: Phase: DRYING / YELLOWING / FIRST CRACK / DEVELOPMENT
   lcd.setCursor(0, 3);
   char line3[21];
   snprintf(line3, sizeof(line3), "Phase: %-13s", roastingPhase.c_str());
@@ -254,7 +340,7 @@ void sendReadingToBackend() {
 
   server.handleClient();
 
-  // Payload theo hợp đồng: {"batch_code": "B20261027-02", "elapsed_s": 90, "temperature_c": 198.5}
+  // Payload chuẩn hợp đồng: {"batch_code": "B20261027-02", "elapsed_s": 90, "temperature_c": 198.5}
   String payload = "{\"batch_code\":\"" + currentBatchCode + "\",\"elapsed_s\":" + String(elapsedSeconds) + ",\"temperature_c\":" + String(currentTemp, 1) + "}";
 
   HTTPClient http;
@@ -266,7 +352,7 @@ void sendReadingToBackend() {
 
   int httpCode = http.POST(payload);
   if (httpCode <= 0) {
-    // Thử fallback sang 10.0.2.2 nếu host.wokwi.internal không phản hồi
+    // Fallback sang IP 10.0.2.2 nếu host.wokwi.internal không phản hồi
     http.end();
     http.begin(fallbackApiUrl);
     http.setConnectTimeout(300);
@@ -283,15 +369,18 @@ void sendReadingToBackend() {
     lastApiStatus = "Lỗi HTTP: " + http.errorToString(httpCode);
   }
 
-  Serial.printf("[IoT] Giây: %ds | BT: %.1f°C (Base: %.1f + Gas: %.1f - Air: %.1f) | Gas: %.0f%% | Air: %.0f%% (Servo %d°) | Phase: %s | Trang thai: %s | API: %s\n",
-    elapsedSeconds, currentTemp, baseTemp, gasEffect, airCooling, gasPercent, airPercent, servoAngle, roastingPhase.c_str(), isAlert ? "QUÁ NHIỆT!" : (isWarning ? "CẢNH BÁO" : "BÌNH THƯỜNG"), lastApiStatus.c_str());
+  Serial.printf("[IoT] Giây: %ds | BT: %.1f°C | Gas: %.0f%% | Air: %.0f%% (Servo %d°) | Phase: %s | Mode: %s | Trang thai: %s | API: %s\n",
+    elapsedSeconds, currentTemp, gasPercent, airPercent, servoAngle, roastingPhase.c_str(),
+    isAutoMode ? "TỰ ĐỘNG" : "CAN THIỆP THỦ CÔNG",
+    isAlert ? "QUÁ NHIỆT / LỖI!" : (isWarning ? "CẢNH BÁO" : "BÌNH THƯỜNG"),
+    lastApiStatus.c_str());
 
   http.end();
   server.handleClient();
 }
 
 // ==============================================================================
-// 7. GIAO DIỆN WEB DASHBOARD LOCALHOST (:8180 QUA WOKWI NET.FORWARD)
+// 7. GIAO DIỆN WEB DASHBOARD LOCALHOST (:8088 QUA WOKWI NET.FORWARD)
 // ==============================================================================
 const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -299,11 +388,10 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>☕ Trạm Giám Sát Lò Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14</title>
+  <title>☕ Trạm Giám Sát & Điều Khiển Lò Rang Cà Phê IoT - 12_ĐH-THMT_Nhom14</title>
   <style>
     :root {
       --primary: #5c3a21;
-      --primary-light: #8c5835;
       --bg: #0f141c;
       --card-bg: #1a2230;
       --card-border: #2a374d;
@@ -315,23 +403,40 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
       --accent: #38bdf8;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 24px; }
+    body { background: var(--bg); color: var(--text); padding: 20px; }
     .container { max-width: 960px; margin: 0 auto; }
     .header {
       background: linear-gradient(135deg, #2b1704 0%, #4a2810 50%, #1f2937 100%);
-      padding: 24px 28px;
+      padding: 22px 26px;
       border-radius: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       border: 1px solid #4a3424;
       display: flex;
       justify-content: space-between;
       align-items: center;
       box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     }
-    .header h1 { font-size: 24px; font-weight: 700; color: #fde68a; }
+    .header h1 { font-size: 22px; font-weight: 700; color: #fde68a; }
     .header p { font-size: 14px; color: #d1d5db; margin-top: 4px; }
-    .badge-group { display: inline-block; background: #374151; color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .badge-group { background: #374151; color: #60a5fa; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+    
+    .status-banner {
+      padding: 16px 22px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-weight: 700;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.3s ease;
+    }
+    .banner-auto { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid #10b981; }
+    .banner-warn { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .banner-alert { background: rgba(239,68,68,0.25); color: #f87171; border: 1px solid #ef4444; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px; }
     .card {
       background: var(--card-bg);
       border-radius: 14px;
@@ -359,22 +464,25 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
     .badge-ok { background: rgba(16,185,129,0.2); color: var(--success); border: 1px solid var(--success); }
     .badge-warn { background: rgba(245,158,11,0.2); color: var(--warning); border: 1px solid var(--warning); }
     .badge-alert { background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); animation: pulse 1s infinite; }
-    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+    
     .progress-bar-bg { background: #111827; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 6px; }
     .progress-bar { height: 100%; border-radius: 5px; transition: width 0.3s ease; }
     .progress-gas { background: linear-gradient(90deg, #f59e0b, #ef4444); }
     .progress-air { background: linear-gradient(90deg, #38bdf8, #3b82f6); }
+    
     .leds { display: flex; gap: 14px; margin-top: 10px; align-items: center; }
     .led-pill { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 20px; background: #111827; }
-    .led-circle { width: 12px; height: 12px; border-radius: 50%; background: #444; }
+    .led-circle { width: 12px; height: 12px; border-radius: 50%; background: #444; transition: 0.3s; }
     .led-green-on { background: #10b981; box-shadow: 0 0 10px #10b981; }
     .led-yellow-on { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; }
-    .led-red-on { background: #ef4444; box-shadow: 0 0 12px #ef4444; }
-    .btn-action { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 12px; }
-    .btn-dump { background: #dc2626; color: white; }
-    .btn-dump:hover { background: #b91c1c; }
-    .btn-reset { background: #374151; color: white; margin-top: 8px; }
-    .btn-reset:hover { background: #4b5563; }
+    .led-red-on { background: #ef4444; box-shadow: 0 0 14px #ef4444; animation: pulse 0.8s infinite; }
+    
+    .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 13px; }
+    .btn-action:hover { filter: brightness(1.2); transform: translateY(-1px); }
+    
+    .slider-box { margin-top: 14px; padding: 10px; background: #111827; border-radius: 8px; }
+    .slider-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    input[type=range] { width: 100%; accent-color: #ef4444; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -389,11 +497,17 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
+    <!-- Live Status Banner -->
+    <div id="modeBanner" class="status-banner banner-auto">
+      <span id="bannerText">🤖 HỆ THỐNG ĐANG TỰ ĐỘNG CHẠY THEO ĐƯỜNG CONG RANG TIÊU CHUẨN</span>
+      <span id="bannerSub" style="font-size: 13px; opacity: 0.9;">AN TOÀN</span>
+    </div>
+
     <div class="grid">
       <!-- Card 1: Bean Temperature & Phase -->
       <div class="card">
         <div class="card-title">
-          <span>🌡️ Nhiệt Độ Lồng Rang (Bean Temp)</span>
+          <span>🌡️ Nhiệt Độ Hạt (Bean Temp)</span>
           <span id="badgeStatus" class="badge badge-ok">[OK] AN TOÀN</span>
         </div>
         <div class="metric-hero" id="tempBean">-- °C</div>
@@ -410,7 +524,7 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           <strong>B20261027-02</strong>
         </div>
         <div class="metric-row">
-          <span>Ngưỡng quá nhiệt (Alert):</span>
+          <span>Ngưỡng cảnh báo quá nhiệt:</span>
           <span style="color: var(--danger); font-weight: 700;">&gt; 205.0 °C</span>
         </div>
       </div>
@@ -419,7 +533,7 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
       <div class="card">
         <div class="card-title">
           <span>🎛️ Cân Bằng Nhiệt Lửa & Gió</span>
-          <span id="dumpBadge" class="badge" style="background:#222; color:#888;">AUTO</span>
+          <span id="modeBadge" class="badge" style="background:#10b981; color:#fff;">TỰ ĐỘNG</span>
         </div>
         <div style="margin: 12px 0;">
           <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:600;">
@@ -443,30 +557,40 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           <span>Góc mở van Servo (GPIO 18):</span>
           <strong id="servoVal" style="color: var(--accent);">0°</strong>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
-          <button class="btn-action" style="background:#dc2626; color:#fff;" onclick="forceOverheat()">🔥 Tạo Quá Nhiệt (&gt;205°C)</button>
-          <button class="btn-action" style="background:#f59e0b; color:#fff;" onclick="forceWarning()">⚡ Kích First Crack</button>
-          <button class="btn-action" style="background:#3b82f6; color:#fff;" onclick="toggleDump()">💨 Xả Gió Khẩn Cấp</button>
-          <button class="btn-action" style="background:#10b981; color:#fff;" onclick="forceAuto()">🎛️ Dùng Biến Trở</button>
+
+        <!-- Slider can thiệp trực tiếp -->
+        <div class="slider-box">
+          <div class="slider-label">
+            <span>🔥 Thanh trượt Lửa Gas (Kéo &gt;60% để gây lỗi):</span>
+            <span id="sliderGasVal" style="color:#f59e0b; font-weight:700;">50%</span>
+          </div>
+          <input type="range" id="gasSlider" min="0" max="100" value="50" oninput="onGasSliderChange(this.value)">
         </div>
-        <button class="btn-action btn-reset" onclick="resetTimer()">⏱️ Đặt lại thời gian mẻ (0s)</button>
+
+        <!-- Interactive Control Buttons -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+          <button class="btn-action" style="background:#10b981; color:#fff;" onclick="forceAuto()">🤖 Chạy Tự Động Chuẩn</button>
+          <button class="btn-action" style="background:#dc2626; color:#fff;" onclick="forceOverheat()">🔥 Tự Ý Tăng Quá Nhiệt</button>
+          <button class="btn-action" style="background:#3b82f6; color:#fff;" onclick="toggleDump()">💨 Xả Gió Khẩn Cấp</button>
+          <button class="btn-action" style="background:#374151; color:#fff;" onclick="resetTimer()">⏱️ Đặt Lại Mẻ Mới (0s)</button>
+        </div>
       </div>
 
       <!-- Card 3: Environment & Backend Sync -->
       <div class="card">
         <div class="card-title">
-          <span>🏭 Môi Trường & Kết Nối Backend</span>
+          <span>🏭 Môi Trường & Backend Django</span>
         </div>
         <div class="metric-row">
-          <span>Nhiệt độ xưởng (DHT22):</span>
+          <span>Nhiệt độ phòng (DHT22):</span>
           <strong id="envT">-- °C</strong>
         </div>
         <div class="metric-row">
-          <span>Độ ẩm xưởng / Ống xả:</span>
+          <span>Độ ẩm hạt / Ống xả:</span>
           <strong id="envH">-- %</strong>
         </div>
         <div class="metric-row">
-          <span>Đồng bộ Django Backend API:</span>
+          <span>Đồng bộ Django API:</span>
           <strong id="apiStatus" style="color: var(--success); font-size: 13px;">Đang gửi...</strong>
         </div>
         <div style="margin-top: 18px;">
@@ -504,36 +628,55 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
           document.getElementById('apiStatus').innerText = d.last_api_status;
 
           var bStatus = document.getElementById('badgeStatus');
-          var dBadge = document.getElementById('dumpBadge');
+          var mBadge = document.getElementById('modeBadge');
+          var banner = document.getElementById('modeBanner');
+          var bText = document.getElementById('bannerText');
+          var bSub = document.getElementById('bannerSub');
           var lG = document.getElementById('ledG');
           var lY = document.getElementById('ledY');
           var lR = document.getElementById('ledR');
 
-          if (d.emergency_dump) {
-            dBadge.innerText = 'DUMP ACTIVE';
-            dBadge.style.background = '#dc2626';
-            dBadge.style.color = '#fff';
-          } else {
-            dBadge.innerText = 'AUTO CONTROL';
-            dBadge.style.background = '#222';
-            dBadge.style.color = '#888';
-          }
-
           if (d.is_alert) {
+            banner.className = 'status-banner banner-alert';
+            bText.innerText = '🚨 BÁO ĐỘNG SỰ CỐ: QUÁ NHIỆT LỒNG RANG (' + d.temperature_c.toFixed(1) + '°C > 205°C)! DO TỰ Ý TĂNG NHIỆT ĐỘ!';
+            bSub.innerText = 'SỰ CỐ!';
             bStatus.className = 'badge badge-alert';
-            bStatus.innerText = '⚠️ [ALRT] QUÁ NHIỆT!';
+            bStatus.innerText = '⚠️ [ALRT] QUÁ NHIỆT / LỖI!';
+            mBadge.innerText = 'CAN THIỆP';
+            mBadge.style.background = '#dc2626';
             lG.className = 'led-circle';
             lY.className = 'led-circle';
             lR.className = 'led-circle led-red-on';
+          } else if (d.emergency_dump) {
+            banner.className = 'status-banner banner-warn';
+            bText.innerText = '💨 ĐANG XẢ NHIỆT KHẨN CẤP (QUẠT HÚT 100%, TẮT LỬA 0%)';
+            bSub.innerText = 'DUMP ACTIVE';
+            bStatus.className = 'badge badge-warn';
+            bStatus.innerText = '[DUMP] LÀM NGUỘI';
+            mBadge.innerText = 'XẢ MẺ';
+            mBadge.style.background = '#3b82f6';
+            lG.className = 'led-circle led-green-on';
+            lY.className = 'led-circle';
+            lR.className = 'led-circle';
           } else if (d.is_warning) {
+            banner.className = 'status-banner banner-warn';
+            bText.innerText = '⚡ GIAI ĐOẠN FIRST CRACK: LÒ ĐANG Ở VÙNG NHIỆT CAO (195°C - 205°C)';
+            bSub.innerText = 'CẢNH BÁO';
             bStatus.className = 'badge badge-warn';
             bStatus.innerText = '⚡ [WARN] FIRST CRACK';
+            mBadge.innerText = d.is_auto ? 'TỰ ĐỘNG' : 'CAN THIỆP';
+            mBadge.style.background = '#f59e0b';
             lG.className = 'led-circle';
             lY.className = 'led-circle led-yellow-on';
             lR.className = 'led-circle';
           } else {
+            banner.className = 'status-banner banner-auto';
+            bText.innerText = '🤖 HỆ THỐNG ĐANG TỰ ĐỘNG CHẠY THEO ĐƯỜNG CONG RANG TIÊU CHUẨN (AN TOÀN)';
+            bSub.innerText = 'AN TOÀN';
             bStatus.className = 'badge badge-ok';
             bStatus.innerText = '✅ [OK] AN TOÀN';
+            mBadge.innerText = 'TỰ ĐỘNG';
+            mBadge.style.background = '#10b981';
             lG.className = 'led-circle led-green-on';
             lY.className = 'led-circle';
             lR.className = 'led-circle';
@@ -545,18 +688,18 @@ const char HTML_DASHBOARD[] PROGMEM = R"rawliteral(
     function forceOverheat() {
       fetch('/api/force_overheat', { method: 'POST' }).then(updateData);
     }
-    function forceWarning() {
-      fetch('/api/force_warning', { method: 'POST' }).then(updateData);
-    }
     function forceAuto() {
       fetch('/api/force_auto', { method: 'POST' }).then(updateData);
     }
     function toggleDump() {
       fetch('/api/dump', { method: 'POST' }).then(updateData);
     }
-
     function resetTimer() {
       fetch('/api/reset', { method: 'POST' }).then(updateData);
+    }
+    function onGasSliderChange(val) {
+      document.getElementById('sliderGasVal').innerText = val + '%';
+      fetch('/api/set_gas?val=' + val, { method: 'POST' }).then(updateData);
     }
 
     setInterval(updateData, 1000);
@@ -582,6 +725,7 @@ void handleStatus() {
     + "\"env_temp\":" + String(envTemp, 1) + ","
     + "\"env_humidity\":" + String(envHumidity, 1) + ","
     + "\"phase\":\"" + roastingPhase + "\","
+    + "\"is_auto\":" + (isAutoMode ? "true" : "false") + ","
     + "\"is_alert\":" + (isAlert ? "true" : "false") + ","
     + "\"is_warning\":" + (isWarning ? "true" : "false") + ","
     + "\"emergency_dump\":" + (emergencyDumpActive ? "true" : "false") + ","
@@ -590,35 +734,60 @@ void handleStatus() {
   server.send(200, "application/json", json);
 }
 
-void handleDumpToggle() {
-  emergencyDumpActive = !emergencyDumpActive;
-  server.send(200, "text/plain", emergencyDumpActive ? "DUMP_ON" : "DUMP_OFF");
-}
-
 void handleForceOverheat() {
   manualOverride = true;
-  overrideGas = 100.0;
-  overrideAir = 0.0;
-  emergencyDumpActive = false;
-  server.send(200, "text/plain", "OVERHEAT");
-}
-
-void handleForceWarning() {
-  manualOverride = true;
-  overrideGas = 80.0;
+  manualInterference = true;
+  isAutoMode = false;
+  overrideGas = 95.0;
   overrideAir = 15.0;
   emergencyDumpActive = false;
-  server.send(200, "text/plain", "WARNING");
+  updatePhysicsAndControls();
+  server.send(200, "text/plain", "OVERHEAT_FORCED");
 }
 
 void handleForceAuto() {
   manualOverride = false;
+  manualInterference = false;
+  isAutoMode = true;
   emergencyDumpActive = false;
-  server.send(200, "text/plain", "AUTO");
+  updatePhysicsAndControls();
+  server.send(200, "text/plain", "AUTO_RESTORED");
+}
+
+void handleSetGas() {
+  if (server.hasArg("val")) {
+    float val = server.arg("val").toFloat();
+    overrideGas = val;
+    manualOverride = true;
+    if (val >= 60.0) {
+      manualInterference = true;
+      isAutoMode = false;
+    } else {
+      manualInterference = false;
+      isAutoMode = true;
+    }
+    updatePhysicsAndControls();
+  }
+  server.send(200, "text/plain", "OK");
+}
+
+void handleDumpToggle() {
+  emergencyDumpActive = !emergencyDumpActive;
+  if (emergencyDumpActive) {
+    manualOverride = false;
+    manualInterference = false;
+  }
+  updatePhysicsAndControls();
+  server.send(200, "text/plain", emergencyDumpActive ? "DUMP_ON" : "DUMP_OFF");
 }
 
 void handleReset() {
   elapsedSeconds = 0;
+  isAutoMode = true;
+  manualInterference = false;
+  manualOverride = false;
+  emergencyDumpActive = false;
+  updatePhysicsAndControls();
   server.send(200, "text/plain", "OK");
 }
 
@@ -668,9 +837,9 @@ void setup() {
   lcd.setCursor(0, 2);
   lcd.print("Full Rig ESP32 Wokwi");
   lcd.setCursor(0, 3);
-  lcd.print("Connecting WiFi...  ");
+  lcd.print("Auto Mode: READY    ");
 
-  // Kết nối WiFi
+  // Kết nối WiFi Wokwi
   WiFi.begin(ssid, password);
   int tries = 0;
   while (WiFi.status() != WL_CONNECTED && tries < 20) {
@@ -690,13 +859,15 @@ void setup() {
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/dump", HTTP_POST, handleDumpToggle);
   server.on("/api/force_overheat", HTTP_POST, handleForceOverheat);
-  server.on("/api/force_warning", HTTP_POST, handleForceWarning);
   server.on("/api/force_auto", HTTP_POST, handleForceAuto);
+  server.on("/api/set_gas", HTTP_POST, handleSetGas);
   server.on("/api/reset", HTTP_POST, handleReset);
   server.begin();
-  Serial.println("Web Server hoat dong tren cong 80 (Map -> localhost:8180)");
+  Serial.println("Web Server hoat dong tren cong 80 (Map -> localhost:8088)");
 
-  lcd.clear();
+  // Cập nhật tính toán ban đầu
+  updatePhysicsAndControls();
+  updateLCD();
 }
 
 void loop() {
